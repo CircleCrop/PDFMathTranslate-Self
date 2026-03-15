@@ -81,11 +81,11 @@ max-line-length = 88
 
 
 
-[bumpver]
+[tool.bumpver]
 current_version = "2.8.2"
 version_pattern = "MAJOR.MINOR.PATCH[.PYTAGNUM]"
 
-[bumpver.file_patterns]
+[tool.bumpver.file_patterns]
 "pyproject.toml" = [
     'current_version = "{version}"',
     'version = "{version}"'

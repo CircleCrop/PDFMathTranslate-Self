@@ -4,35 +4,18 @@
 
 <h2 id="title">PDFMathTranslate</h2>
 
-<p>
-  <!-- PyPI -->
-  <a href="https://pypi.org/project/pdf2zh-next/">
-    <img src="https://img.shields.io/pypi/v/pdf2zh-next"></a>
-  <a href="https://pepy.tech/projects/pdf2zh-next">
-    <img src="https://static.pepy.tech/badge/pdf2zh-next"></a>
-  <a href="https://hub.docker.com/repository/docker/awwaawwa/pdfmathtranslate-next/tags">
-    <img src="https://img.shields.io/docker/pulls/awwaawwa/pdfmathtranslate-next"></a>
-  <!-- <a href="https://gitcode.com/PDFMathTranslate-next/PDFMathTranslate-next/overview">
-    <img src="https://gitcode.com/PDFMathTranslate-next/PDFMathTranslate-next/star/badge.svg"></a> -->
-  <!-- <a href="https://huggingface.co/spaces/reycn/PDFMathTranslate-Docker">
-    <img src="https://img.shields.io/badge/%F0%9F%A4%97-Online%20Demo-FF9E0D"></a> -->
-  <!-- <a href="https://www.modelscope.cn/studios/AI-ModelScope/PDFMathTranslate"> -->
-    <!-- <img src="https://img.shields.io/badge/ModelScope-Demo-blue"></a> -->
-  <!-- <a href="https://github.com/PDFMathTranslate-next/PDFMathTranslate-next/pulls">
-    <img src="https://img.shields.io/badge/contributions-welcome-green"></a> -->
-  <a href="https://t.me/+Z9_SgnxmsmA5NzBl">
-    <img src="https://img.shields.io/badge/Telegram-2CA5E0?style=flat-squeare&logo=telegram&logoColor=white"></a>
-  <!-- License -->
-  <a href="./LICENSE">
-    <img src="https://img.shields.io/github/license/PDFMathTranslate-next/PDFMathTranslate-next"></a>
-  <a href="https://hosted.weblate.org/engage/pdfmathtranslate-next/">
-    <img src="https://hosted.weblate.org/widget/pdfmathtranslate-next/svg-badge.svg" alt="translation status" /></a>
-    <a href="https://deepwiki.com/PDFMathTranslate-next/PDFMathTranslate-next"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
-</p>
-
-<a href="https://trendshift.io/repositories/12424" target="_blank"><img src="https://trendshift.io/api/badge/repositories/12424" alt="Byaidu%2FPDFMathTranslate | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-
 </div>
+
+---
+
+> [!IMPORTANT]
+> This repository is our working fork of PDFMathTranslate for self-hosted use.
+>
+> - Primary deployment target: Ubuntu/Debian-based Linux Docker containers.
+> - Future changes should prioritize Docker build reproducibility, runtime stability, and headless/container-friendly behavior.
+> - Windows EXE and macOS-specific workflows are out of scope unless they affect shared code paths.
+> - When installation or runtime behavior changes, update Docker/build documentation first.
+
 
 PDF scientific paper translation and bilingual comparison. Based on [BabelDOC](https://github.com/funstory-ai/BabelDOC). Additionally, this project is also the official reference implementation for calling BabelDOC to perform PDF translation.
 
@@ -48,9 +31,6 @@ PDF scientific paper translation and bilingual comparison. Based on [BabelDOC](h
 >
 > Due to the maintainers' limited energy, we do not provide any form of usage assistance or problem-solving. Related issues will be closed directly! (Pull requests to improve project documentation are welcome; bugs or friendly issues that follow the issue template are not affected by this)
 
-
-For details on how to contribute, please consult the [Contribution Guide](https://pdf2zh-next.com/community/Contribution-Guide.html).
-
 <h2 id="preview">Preview</h2>
 
 <div align="center">
@@ -58,19 +38,65 @@ For details on how to contribute, please consult the [Contribution Guide](https:
 <img src="https://s.immersivetranslate.com/assets/r2-uploads/images/babeldoc-preview.png" width="80%"/>
 </div>
 
-<h2 id="demo">Online Service 🌟</h2>
-
-You can try our application out using either of the following services:
-
-- [Immersive Translate - BabelDOC](https://app.immersivetranslate.com/babel-doc/) Free usage quota is available; please refer to the FAQ section on the page for details.
-
 <h2 id="install">Installation and Usage</h2>
 
 ### Installation
 
-1. [**Windows EXE**](https://pdf2zh-next.com/getting-started/INSTALLATION_winexe.html) <small>Recommand for Windows</small>
-2. [**Docker**](https://pdf2zh-next.com/getting-started/INSTALLATION_docker.html) <small>Recommand for Linux</small>
-3. [**uv** (a Python package manager)](https://pdf2zh-next.com/getting-started/INSTALLATION_uv.html) <small>Recommand for macOS</small>
+1. [**Docker**](https://pdf2zh-next.com/getting-started/INSTALLATION_docker.html) <small>Recommand for Linux</small>
+2. [**uv** (a Python package manager)](https://pdf2zh-next.com/getting-started/INSTALLATION_uv.html) <small>Recommand for macOS</small>
+
+---
+
+### Build On Debian amd64 Linux
+
+For this fork, the primary build target is Debian/Ubuntu-like amd64 Linux.
+
+#### Recommended: build the Docker image
+
+```bash
+git clone <your-fork-url>
+cd PDFMathTranslate-Self
+docker build -t pdfmathtranslate-self .
+docker run --rm pdfmathtranslate-self pdf2zh --version
+docker run --rm -p 7860:7860 pdfmathtranslate-self
+```
+
+Then open:
+
+```text
+http://localhost:7860/
+```
+
+#### Alternative: build and run from source on Debian amd64
+
+Install system dependencies:
+
+```bash
+sudo apt-get update
+sudo apt-get install --no-install-recommends -y \
+  python3 python3-venv python3-pip \
+  build-essential \
+  libgl1 libglib2.0-0 libxext6 libsm6 libxrender1
+```
+
+Create a local environment and install from this repository:
+
+```bash
+python3 -m pip install --user uv
+uv venv
+. .venv/bin/activate
+uv pip install --no-cache -r pyproject.toml
+uv pip install --no-cache .
+babeldoc --warmup
+pdf2zh --version
+pdf2zh --gui
+```
+
+#### Current build notes
+
+- The first build can take a while because BabelDOC assets are warmed up during installation.
+- The current Docker build needs outbound network access for Python packages and BabelDOC-related asset downloads.
+- If you only need a quick smoke test after building, run `pdf2zh --version` before starting the WebUI.
 
 ---
 
@@ -130,21 +156,3 @@ If you don't know what code to use to translate to the language you need, check 
 <h2 id="conduct">Before submit your code</h2>
 
 We welcome the active participation of contributors to make pdf2zh better. Before you are ready to submit your code, please refer to our [Code of Conduct](https://pdf2zh-next.com/community/CODE_OF_CONDUCT.html) and [Contribution Guide](https://pdf2zh-next.com/community/Contribution-Guide.html).
-
-<h2 id="contrib">Contributors</h2>
-
-<!-- <a href="https://github.com/PDFMathTranslate-next/PDFMathTranslate-next/graphs/contributors">
-  <img src="https://opencollective.com/PDFMathTranslate/contributors.svg?width=890&button=false" />
-</a> -->
-
-<!-- ![Alt](https://repobeats.axiom.co/api/embed/45529651750579e099960950f757449a410477ad.svg "Repobeats analytics image") -->
-
-<h2 id="star_hist">Star History</h2>
-
-<a href="https://star-history.com/#PDFMathTranslate-next/PDFMathTranslate-next&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=PDFMathTranslate-next/PDFMathTranslate-next&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=PDFMathTranslate-next/PDFMathTranslate-next&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=PDFMathTranslate-next/PDFMathTranslate-next&type=Date"/>
- </picture>
-</a>
