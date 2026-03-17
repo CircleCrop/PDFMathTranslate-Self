@@ -13,6 +13,8 @@ from pdf2zh_next.config.translate_engine_model import (
 )
 from pdf2zh_next.config.translate_engine_model import TRANSLATION_ENGINE_METADATA_MAP
 from pdf2zh_next.config.translate_engine_model import TRANSLATION_ENGINE_SETTING_TYPE
+from pdf2zh_next.runtime import load_model_param_bundle
+from pdf2zh_next.runtime import load_prompt_bundle
 
 log = logging.getLogger(__name__)
 
@@ -98,7 +100,23 @@ class TranslationSettings(BaseModel):
     ignore_cache: bool = Field(default=False, description="Ignore translation cache")
     custom_system_prompt: str | None = Field(
         default=None,
-        description='Custom system prompt for translation. It is mainly used to add the `/no_think` instruction of Qwen 3 in the prompt. e.g. --custom-system-prompt "/no_think You are a professional, authentic machine translation engine."',
+        description='Custom system prompt for translation. This overrides the default role/system block used by prompt templates. It is mainly used to add the `/no_think` instruction of Qwen 3 in the prompt. e.g. --custom-system-prompt "/no_think You are a professional, authentic machine translation engine."',
+    )
+    prompt_profile: str = Field(
+        default="default",
+        description="Prompt template profile name",
+    )
+    prompt_override_file: str | None = Field(
+        default=None,
+        description="Optional YAML file that overrides packaged prompt templates",
+    )
+    model_param_profile: str = Field(
+        default="default",
+        description="Model parameter profile name",
+    )
+    model_param_override_file: str | None = Field(
+        default=None,
+        description="Optional YAML file that overrides packaged model parameters",
     )
     glossaries: str | None = Field(
         default=None,
@@ -266,6 +284,15 @@ class SettingsModel(BaseModel):
             # only generate offline assets
             # so no need to validate other settings
             return
+
+        load_prompt_bundle(
+            profile_name=self.translation.prompt_profile,
+            override_file=self.translation.prompt_override_file,
+        )
+        load_model_param_bundle(
+            profile_name=self.translation.model_param_profile,
+            override_file=self.translation.model_param_override_file,
+        )
 
         if not self.translate_engine_settings:
             raise ValueError("Must provide a translation service")

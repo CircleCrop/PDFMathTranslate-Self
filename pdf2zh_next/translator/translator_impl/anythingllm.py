@@ -23,6 +23,10 @@ class AnythingLLMTranslator(BaseTranslator):
         rate_limiter: BaseRateLimiter,
     ):
         super().__init__(settings, rate_limiter)
+        runtime_params = self.get_runtime_model_params(
+            supported_keys={"timeout_seconds"},
+        )
+        self.timeout_seconds = int(runtime_params.get("timeout_seconds", 60))
         self.api_url = settings.translate_engine_settings.anythingllm_url
         self.api_key = settings.translate_engine_settings.anythingllm_apikey
         self.headers = {
@@ -46,7 +50,10 @@ class AnythingLLMTranslator(BaseTranslator):
         }
 
         response = requests.post(
-            self.api_url, headers=self.headers, data=json.dumps(payload), timeout=60
+            self.api_url,
+            headers=self.headers,
+            data=json.dumps(payload),
+            timeout=self.timeout_seconds,
         )
         response.raise_for_status()
         data = response.json()

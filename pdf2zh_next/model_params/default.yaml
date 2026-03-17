@@ -1,0 +1,45 @@
+profiles:
+  default:
+    defaults:
+      temperature:
+      top_p:
+      top_k:
+      max_tokens:
+      timeout_seconds:
+    families:
+      default: {}
+      gpt: {}
+      claude: {}
+      gemini: {}
+    providers:
+      babeldoc:
+        paragraph_batch_token_limit: 200
+        paragraph_batch_size_limit: 5
+        term_batch_token_limit: 600
+        term_batch_size_limit: 12
+        llm_output_ratio_min: 0.3
+        llm_output_ratio_max: 3.0
+        same_as_input_min_input_tokens: 10
+        same_text_edit_distance_threshold: 5
+        same_text_min_input_tokens: 20
+      openai:
+        max_tokens: 2048
+      azure_openai:
+        temperature: 0
+      siliconflow:
+        temperature: 0
+      xinference:
+        temperature: 0
+      qwenmt:
+        temperature: 0
+      ollama:
+        temperature: 0
+        num_predict: 2000
+        num_predict_char_multiplier: 5
+      claude_code:
+        max_turns: 1
+        timeout_seconds: 120
+      anythingllm:
+        timeout_seconds: 60
+      dify:
+        timeout_seconds: 60

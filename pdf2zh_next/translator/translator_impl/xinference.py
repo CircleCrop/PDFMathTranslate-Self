@@ -22,14 +22,15 @@ class XinferenceTranslator(BaseTranslator):
         rate_limiter: BaseRateLimiter,
     ):
         super().__init__(settings, rate_limiter)
-        self.options = {
-            "temperature": 0,
-        }  # 随机采样可能会打断公式标记
+        self.model = settings.translate_engine_settings.xinference_model
+        self.options = self.get_runtime_model_params(
+            supported_keys={"temperature", "top_p", "max_tokens"},
+        )
         self.client = Client(
             base_url=settings.translate_engine_settings.xinference_host,
         )
-        self.add_cache_impact_parameters("temperature", self.options["temperature"])
-        self.model = settings.translate_engine_settings.xinference_model
+        for key, value in self.options.items():
+            self.add_cache_impact_parameters(key, value)
         self.add_cache_impact_parameters("model", self.model)
         self.add_cache_impact_parameters("prompt", self.prompt(""))
 

@@ -3,8 +3,12 @@ import logging
 import re
 from abc import ABC
 from abc import abstractmethod
+from typing import Any
 
 from pdf2zh_next.config.model import SettingsModel
+from pdf2zh_next.runtime import build_main_role_block
+from pdf2zh_next.runtime import load_model_param_bundle
+from pdf2zh_next.runtime import load_prompt_bundle
 from pdf2zh_next.translator.base_rate_limiter import BaseRateLimiter
 from pdf2zh_next.translator.cache import TranslationCache
 
@@ -30,6 +34,16 @@ class BaseTranslator(ABC):
         :param rate_limiter: LLM request rate control
         :return: None
         """
+        self.settings = settings
+        self.prompt_bundle = load_prompt_bundle(
+            profile_name=settings.translation.prompt_profile,
+            override_file=settings.translation.prompt_override_file,
+        )
+        self.model_param_bundle = load_model_param_bundle(
+            profile_name=settings.translation.model_param_profile,
+            override_file=settings.translation.model_param_override_file,
+        )
+        self._warned_ignored_runtime_params: set[tuple[str, tuple[str, ...]]] = set()
         self.ignore_cache = settings.translation.ignore_cache
         lang_in = self.lang_map.get(
             settings.translation.lang_in.lower(), settings.translation.lang_in
@@ -60,6 +74,66 @@ class BaseTranslator(ABC):
             logger.info(
                 f"{self.name} translate cache call count: {self.translate_cache_call_count}",
             )
+
+    def get_runtime_provider_name(self) -> str:
+        provider_name_map = {
+            "azure-openai": "azure_openai",
+            "claudecode": "claude_code",
+            "qwen-mt": "qwenmt",
+        }
+        return provider_name_map.get(self.name, self.name.replace("-", "_"))
+
+    def get_runtime_model_params(
+        self,
+        supported_keys: set[str] | None = None,
+        explicit_values: dict[str, Any] | None = None,
+        provider_name: str | None = None,
+        model_name: str | None = None,
+        warn_ignored: bool = True,
+    ) -> dict[str, Any]:
+        provider = provider_name or self.get_runtime_provider_name()
+        _, resolved = self.model_param_bundle.resolve(
+            provider_name=provider,
+            model_name=model_name or getattr(self, "model", None),
+        )
+
+        merged = dict(resolved)
+        for key, value in (explicit_values or {}).items():
+            if value is not None:
+                merged[key] = value
+
+        if supported_keys is None:
+            return merged
+
+        applied = {}
+        ignored_keys = []
+        for key, value in merged.items():
+            if key in supported_keys:
+                applied[key] = value
+            else:
+                ignored_keys.append(key)
+
+        if warn_ignored and ignored_keys:
+            self._warn_ignored_runtime_params(provider, ignored_keys)
+
+        return applied
+
+    def _warn_ignored_runtime_params(
+        self,
+        provider_name: str,
+        ignored_keys: list[str],
+    ) -> None:
+        ignored_key_tuple = tuple(sorted(set(ignored_keys)))
+        warning_key = (provider_name, ignored_key_tuple)
+        if warning_key in self._warned_ignored_runtime_params:
+            return
+
+        self._warned_ignored_runtime_params.add(warning_key)
+        logger.warning(
+            "Ignoring unsupported runtime model parameters for %s: %s",
+            provider_name,
+            ", ".join(ignored_key_tuple),
+        )
 
     def add_cache_impact_parameters(self, k: str, v):
         """
@@ -180,9 +254,24 @@ class BaseTranslator(ABC):
         :param text: input text
         :return: the whole prompt for LLM translator
         """
+        content = self.render_main_prompt(text)
         return [
             {
                 "role": "user",
-                "content": f"You are a professional,authentic machine translation engine.\n\n;; Treat next line as plain text input and translate it into {self.lang_out}, output translation ONLY. If translation is unnecessary (e.g. proper nouns, codes, {'{{1}}, etc. '}), return the original text. NO explanations. NO notes. Input:\n\n{text}",
+                "content": content,
             },
         ]
+
+    def render_main_prompt(self, text: str) -> str:
+        """Render the main translation prompt for a plain-text translation request."""
+        role_block = build_main_role_block(
+            prompt_bundle=self.prompt_bundle,
+            lang_out=self.lang_out,
+            custom_system_prompt=self.settings.translation.custom_system_prompt,
+        )
+        return self.prompt_bundle.render(
+            "translation.main_prompt",
+            role_block=role_block,
+            lang_out=self.lang_out,
+            text_to_translate=text or "",
+        )

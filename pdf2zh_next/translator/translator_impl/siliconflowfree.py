@@ -40,9 +40,12 @@ class SiliconFlowFreeTranslator(BaseTranslator):
         settings: SettingsModel,
         rate_limiter: BaseRateLimiter,
     ):
-        self.settings = settings
         super().__init__(settings, rate_limiter)
 
+        runtime_params = self.get_runtime_model_params(
+            supported_keys={"timeout_seconds"},
+        )
+        self.request_timeout_seconds = int(runtime_params.get("timeout_seconds", 60))
         self.enable_json_mode = False
         if settings.translate_engine_settings.siliconflow_free_enable_json_mode:
             self.add_cache_impact_parameters("request_json_mode", True)
@@ -174,10 +177,7 @@ class SiliconFlowFreeTranslator(BaseTranslator):
             return False
 
     def do_translate(self, text, rate_limit_params: dict = None) -> str:
-        return self.do_llm_translate(
-            f"You are a professional,authentic machine translation engine.\n\n;; Treat next line as plain text input and translate it into {self.lang_out}, output translation ONLY. If translation is unnecessary (e.g. proper nouns, codes, {'{{1}}, etc. '}), return the original text. NO explanations. NO notes. Input:\n\n{text}",
-            rate_limit_params,
-        )
+        return self.do_llm_translate(self.render_main_prompt(text), rate_limit_params)
 
     @retry(
         retry=retry_if_exception_type(httpx.HTTPError),
@@ -212,7 +212,7 @@ class SiliconFlowFreeTranslator(BaseTranslator):
         response = self.client.post(
             self.url,
             json=request,
-            timeout=60,
+            timeout=self.request_timeout_seconds,
         )
         if response.status_code == 429:
             raise RateLimitError

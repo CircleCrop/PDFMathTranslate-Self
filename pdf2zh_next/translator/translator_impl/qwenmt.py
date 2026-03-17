@@ -23,13 +23,19 @@ class QwenMtTranslator(BaseTranslator):
         rate_limiter: BaseRateLimiter,
     ):
         super().__init__(settings, rate_limiter)
-        self.options = {"temperature": 0}  # 随机采样可能会打断公式标记
+        self.model = settings.translate_engine_settings.qwenmt_model
+        runtime_params = self.get_runtime_model_params(
+            supported_keys={"temperature", "top_p", "max_tokens", "timeout_seconds"},
+        )
+        client_timeout = runtime_params.pop("timeout_seconds", None)
+        self.options = dict(runtime_params)
         self.client = openai.OpenAI(
             base_url=settings.translate_engine_settings.qwenmt_base_url,
             api_key=settings.translate_engine_settings.qwenmt_api_key,
+            timeout=client_timeout if client_timeout else openai.NOT_GIVEN,
         )
-        self.add_cache_impact_parameters("temperature", self.options["temperature"])
-        self.model = settings.translate_engine_settings.qwenmt_model
+        for key, value in self.options.items():
+            self.add_cache_impact_parameters(key, value)
         self.ali_domain = settings.translate_engine_settings.ali_domains
         self.add_cache_impact_parameters("model", self.model)
         self.add_cache_impact_parameters("prompt", self.prompt(""))

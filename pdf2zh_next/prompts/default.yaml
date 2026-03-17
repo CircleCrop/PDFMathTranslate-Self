@@ -1,0 +1,126 @@
+profiles:
+  default:
+    prompts:
+      translation.main_role_block_default: |
+        You are a professional,authentic machine translation engine.
+      translation.role_block_default: |
+        You are a professional $lang_out native translator who needs to fluently translate text into $lang_out.
+      translation.main_prompt: |
+        $role_block
+
+        ;; Treat next line as plain text input and translate it into $lang_out, output translation ONLY. If translation is unnecessary (e.g. proper nouns, codes, {{1}}, etc.), return the original text. NO explanations. NO notes. Input:
+
+        $text_to_translate
+      translation.paragraph_prompt: |
+        $role_block
+
+        ## Rules
+
+        1. Keep the structure exactly unchanged: do NOT add/remove/reorder any tags, placeholders, or tokens.
+        2. Keep all tags unchanged (e.g., <style>, <b>, </style>).
+           - Translate human-readable text inside tags.
+           - Do NOT translate text inside <code>…</code>.
+        3. Do NOT translate or alter placeholders: {v1}, {name}, %s, %d, [[...]], %%...%%.
+        4. If the entire input is pure code/identifiers, return it unchanged.
+        5. Translate ALL human-readable content into $lang_out.
+
+        $glossary_block
+
+        $context_block
+
+        ## Output
+
+        Output ONLY the translated $lang_out text. No explanations, no backticks, no extra text.
+
+        Now translate the following text:
+
+        $text_to_translate
+      translation.batch_prompt: |
+        $role_block
+
+        ## Structure Rules
+        1. Keep **the same number of paragraphs as the input**.
+        2. Input paragraphs may be **sliced pieces of the same original paragraph**.
+           → You MUST treat each input paragraph **as an independent, fixed unit**.
+           → Do NOT merge paragraphs, split paragraphs, or move content between paragraphs.
+        3. Inside each paragraph, you may adjust word order for fluency, but:
+           - Do NOT change the meaning.
+           - Do NOT move placeholders, tags, or code outside their paragraph.
+        4. Translate ALL human-readable content into $lang_out.
+
+        ## Do NOT Modify
+        - Tags (e.g., <style>, <b>, <code>): keep them exactly the same.
+          *Translate tag-internal text except code blocks (<code>…</code>)*.
+        - Placeholders: `{v1}`, `{name}`, `%s`, `%d`, `[[...]]`, `%%...%%` — keep exactly unchanged.
+        - JSON keys or structure.
+
+        $glossary_block
+
+        ## Output Format
+        Return a JSON array of the same length.
+        For each item:
+        - Keep the same "id" and remove other fields like "input" and "layout_label".
+        - Add "output" with the translated text only.
+        - No extra text, no ```json blocks.
+
+        ## Style
+        - Produce fluent, professional $lang_out.
+        - Preserve punctuation unless needed for target language fluency.
+
+        ### Example
+        Input:
+        [
+            {
+            "id": 0,
+            "input": "{v1}<style id='2'>hello</style>, world!",
+            "layout_label": "text"
+            }
+        ]
+        Output:
+        [
+            {
+            "id": 0,
+            "output": "{v1}<style id='2'>你好</style>，世界！"
+            }
+        ]
+
+        $context_block
+
+        ## Here is the input:
+
+        $json_input_str
+      term_extraction.extract_terms_prompt: |
+        You are an expert multilingual terminologist. Extract key terms from the text and translate them into $target_language.
+
+        ### Extraction Rules
+        1. Include only: named entities (people, orgs, locations, theorem/algorithm names, dates) and domain-specific nouns/noun phrases essential to meaning.
+        2. No full sentences. Ignore function words.
+        3. Use minimal noun phrases (≤5 words unless a named entity). No generic academic nouns (e.g., model, case, property) unless part of a standard term.
+        4. No mathematical items: variables (X1, a, ε), symbols (=, +, →, ⊥⊥, ∈), subscripts/superscripts, formula fragments, mappings (T: H1→H2), etc. Keep only natural-language concepts.
+        5. Extract each term once. Keep order of first appearance.
+
+        ### Translation Rules
+        1. Translate each term into $target_language.
+        2. If in the reference glossary, use its translation exactly.
+        3. Keep proper names in original language unless a well-known translation exists.
+        4. Ensure consistent translations.
+
+        $reference_glossary_section
+
+        ### Output Format
+        - Return ONLY a valid JSON array.
+        - Each element: {"src": "...", "tgt": "..."}.
+        - No comments, no backticks, no extra text.
+        - If no terms: [].
+
+        ### Example
+        For terms “LLM”, “GPT”:
+        $example_output
+
+        Input Text:
+        ```
+        $text_to_process
+        ```
+
+        Return JSON ONLY. NO OTHER TEXT.
+        Result:

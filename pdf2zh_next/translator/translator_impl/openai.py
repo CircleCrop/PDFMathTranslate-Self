@@ -26,17 +26,6 @@ class OpenAITranslator(BaseTranslator):
     ):
         super().__init__(settings, rate_limiter)
         self.timeout = settings.translate_engine_settings.openai_timeout
-        self.client = openai.OpenAI(
-            base_url=settings.translate_engine_settings.openai_base_url,
-            api_key=settings.translate_engine_settings.openai_api_key,
-            timeout=float(self.timeout) if self.timeout else openai.NOT_GIVEN,
-            http_client=httpx.Client(
-                limits=httpx.Limits(
-                    max_connections=None, max_keepalive_connections=None
-                )
-            ),
-        )
-        self.options = {}
         self.temperature = settings.translate_engine_settings.openai_temperature
         self.reasoning_effort = (
             settings.translate_engine_settings.openai_reasoning_effort
@@ -47,15 +36,36 @@ class OpenAITranslator(BaseTranslator):
         self.send_reasoning_effort = (
             settings.translate_engine_settings.openai_send_reasoning_effort
         )
+        self.model = settings.translate_engine_settings.openai_model
 
+        explicit_runtime_params = {}
+        if self.timeout:
+            explicit_runtime_params["timeout_seconds"] = float(self.timeout)
         if self.send_temperature and self.temperature:
-            self.add_cache_impact_parameters("temperature", self.temperature)
-            self.options["temperature"] = float(self.temperature)
+            explicit_runtime_params["temperature"] = float(self.temperature)
+
+        runtime_params = self.get_runtime_model_params(
+            supported_keys={"temperature", "top_p", "max_tokens", "timeout_seconds"},
+            explicit_values=explicit_runtime_params,
+        )
+        client_timeout = runtime_params.pop("timeout_seconds", None)
+        self.client = openai.OpenAI(
+            base_url=settings.translate_engine_settings.openai_base_url,
+            api_key=settings.translate_engine_settings.openai_api_key,
+            timeout=float(client_timeout) if client_timeout else openai.NOT_GIVEN,
+            http_client=httpx.Client(
+                limits=httpx.Limits(
+                    max_connections=None, max_keepalive_connections=None
+                )
+            ),
+        )
+        self.options = dict(runtime_params)
+        for key, value in self.options.items():
+            self.add_cache_impact_parameters(key, value)
         if self.send_reasoning_effort and self.reasoning_effort:
             self.add_cache_impact_parameters("reasoning_effort", self.reasoning_effort)
             self.options["reasoning_effort"] = self.reasoning_effort
 
-        self.model = settings.translate_engine_settings.openai_model
         self.add_cache_impact_parameters("model", self.model)
         self.add_cache_impact_parameters("prompt", self.prompt(""))
         self.token_count = AtomicInteger()

@@ -10,11 +10,11 @@ import uuid
 import zipfile
 from enum import Enum
 from pathlib import Path
-from string import Template
 
 import chardet
 import gradio as gr
 import requests
+import tomlkit
 import yaml
 from babeldoc import __version__ as babeldoc_version
 from gradio_i18n import Translate
@@ -278,6 +278,22 @@ assert available_services, "No translation service is enabled"
 
 disable_gui_sensitive_input = settings.gui_settings.disable_gui_sensitive_input
 
+default_service = available_services[0]
+for metadata in TRANSLATION_ENGINE_METADATA:
+    if (
+        metadata.translate_engine_type in available_services
+        and getattr(settings, metadata.cli_flag_name, False)
+    ):
+        default_service = metadata.translate_engine_type
+        break
+
+default_term_service = "Follow main translation engine"
+for term_metadata in TERM_EXTRACTION_ENGINE_METADATA:
+    term_flag_name = f"term_{term_metadata.cli_flag_name}"
+    if getattr(settings, term_flag_name, False):
+        default_term_service = term_metadata.translate_engine_type
+        break
+
 
 def _get_unique_dest_path(output_dir: Path, original_name: str) -> Path:
     """
@@ -492,14 +508,20 @@ def _calculate_rate_limit_params(
         pool_workers = min(1000, qps * 10)
 
     elif rate_limit_mode == "Concurrent Threads":
-        threads: int = ui_inputs.get("concurrent_threads_input", 40)
+        threads: int = ui_inputs.get(
+            "concurrent_threads_input",
+            ui_inputs.get("concurrent_threads", 40),
+        )
         # Ensure at least 1 worker, at most 1000 workers, using a safer calculation method
         pool_workers = min(1000, max(1, min(int(threads * 0.9), max(1, threads - 20))))
         qps = max(1, pool_workers)
 
     else:  # Custom
-        qps = ui_inputs.get("custom_qps_input", default_qps)
-        pool_workers = ui_inputs.get("custom_pool_workers")
+        qps = ui_inputs.get("custom_qps_input", ui_inputs.get("custom_qps", default_qps))
+        pool_workers = ui_inputs.get(
+            "custom_pool_max_workers_input",
+            ui_inputs.get("custom_pool_workers"),
+        )
         qps = int(qps)
         pool_workers = int(pool_workers) if pool_workers and pool_workers > 0 else None
 
@@ -515,32 +537,49 @@ def _build_translate_settings(
     save_mode: SaveMode,
     ui_inputs: dict,
 ) -> SettingsModel:
-    """
-    This function builds translation settings from UI inputs.
+    cli_settings = _build_cli_settings_from_ui(base_settings=base_settings, ui_inputs=ui_inputs)
 
-    Inputs:
-        - base_settings: The base settings model to build upon
-        - file_path: The path to the input file
-        - output_dir: The output directory
-        - save_mode: SaveMode enum indicating when to save config
-        - ui_inputs: A dictionary of UI inputs
+    should_save = False
+    if save_mode == SaveMode.always:
+        should_save = True
+    elif save_mode == SaveMode.follow_settings:
+        should_save = not cli_settings.gui_settings.disable_config_auto_save
 
-    Returns:
-        - A configured SettingsModel instance
+    if should_save:
+        config_manager.write_user_default_config_file(settings=cli_settings.clone())
+        global settings
+        settings = cli_settings.clone()
+
+    temp_settings = cli_settings.to_settings_model()
+    temp_settings.basic.input_files = {str(file_path)}
+    temp_settings.report_interval = 0.2
+    temp_settings.translation.output = str(output_dir)
+    temp_settings.translation.glossaries = ui_inputs.get("glossaries")
+
+    try:
+        temp_settings.validate_settings()
+        return temp_settings
+    except ValueError as e:
+        raise gr.Error(f"Invalid settings: {e}") from e
+
+
+def _build_cli_settings_from_ui(
+    base_settings: CLIEnvSettingsModel,
+    ui_inputs: dict,
+) -> CLIEnvSettingsModel:
     """
-    # Clone base settings to avoid modifying the original
+    Build a persistent CLIEnvSettingsModel from the current UI inputs.
+
+    Runtime-only values such as input files, output directory, and in-memory
+    glossary temp files are handled later by _build_translate_settings.
+    """
     translate_settings = base_settings.clone()
-    original_output = translate_settings.translation.output
-    original_pages = translate_settings.pdf.pages
-    original_gui_settings = config_manager.config_cli_settings.gui_settings
 
-    # Extract UI values
     service = ui_inputs.get("service")
     lang_from = ui_inputs.get("lang_from")
     lang_to = ui_inputs.get("lang_to")
     page_range = ui_inputs.get("page_range")
     page_input = ui_inputs.get("page_input")
-    prompt = ui_inputs.get("prompt")
     ignore_cache = ui_inputs.get("ignore_cache")
 
     # PDF Output Options
@@ -592,6 +631,12 @@ def _build_translate_settings(
     term_custom_pool_workers = ui_inputs.get("term_custom_pool_workers")
 
     # New input for custom_system_prompt
+    prompt_profile_input = ui_inputs.get("prompt_profile_input")
+    prompt_override_file_input = ui_inputs.get("prompt_override_file_input")
+    model_param_profile_input = ui_inputs.get("model_param_profile_input")
+    model_param_override_file_input = ui_inputs.get(
+        "model_param_override_file_input"
+    )
     custom_system_prompt_input = ui_inputs.get("custom_system_prompt_input")
     glossaries = ui_inputs.get("glossaries")
     save_auto_extracted_glossary = ui_inputs.get("save_auto_extracted_glossary")
@@ -614,12 +659,8 @@ def _build_translate_settings(
                 str(p + 1) for p in selected_pages
             )  # +1 because UI is 1-indexed
 
-    # Update settings with UI values
-    translate_settings.basic.input_files = {str(file_path)}
-    translate_settings.report_interval = 0.2
     translate_settings.translation.lang_in = source_lang
     translate_settings.translation.lang_out = target_lang
-    translate_settings.translation.output = str(output_dir)
     translate_settings.translation.ignore_cache = ignore_cache
 
     # Update Translation Settings
@@ -627,6 +668,20 @@ def _build_translate_settings(
         translate_settings.translation.min_text_length = int(min_text_length)
     if rpc_doclayout:
         translate_settings.translation.rpc_doclayout = rpc_doclayout
+    translate_settings.translation.prompt_profile = (
+        prompt_profile_input.strip() if prompt_profile_input else "default"
+    )
+    translate_settings.translation.prompt_override_file = (
+        prompt_override_file_input.strip() if prompt_override_file_input else None
+    )
+    translate_settings.translation.model_param_profile = (
+        model_param_profile_input.strip() if model_param_profile_input else "default"
+    )
+    translate_settings.translation.model_param_override_file = (
+        model_param_override_file_input.strip()
+        if model_param_override_file_input
+        else None
+    )
 
     # UI uses positive switch, config uses negative flag, so we invert here
     if enable_auto_term_extraction is not None:
@@ -795,7 +850,7 @@ def _build_translate_settings(
                     if field_name in GUI_SENSITIVE_FIELDS:
                         continue
                 value = ui_inputs.get(field_name)
-                type_hint = detail_setting.model_fields[field_name].annotation
+                type_hint = type(detail_setting).model_fields[field_name].annotation
                 original_type = typing.get_origin(type_hint)
                 type_args = typing.get_args(type_hint)
                 if type_hint is str or str in type_args:
@@ -810,51 +865,23 @@ def _build_translate_settings(
                     )
                 setattr(detail_setting, field_name, value)
 
-    # Add custom prompt if provided
-    if prompt:
-        # This might need adjustment based on how prompt is handled in the new system
-        translate_settings.custom_prompt = Template(prompt)
-
     # Add custom system prompt if provided
     if custom_system_prompt_input:
         translate_settings.translation.custom_system_prompt = custom_system_prompt_input
     else:
         translate_settings.translation.custom_system_prompt = None
 
-    if glossaries:
-        translate_settings.translation.glossaries = glossaries
-    else:
-        translate_settings.translation.glossaries = None
-
+    translate_settings.translation.glossaries = None
     translate_settings.translation.save_auto_extracted_glossary = (
         save_auto_extracted_glossary
     )
 
-    # Validate settings before proceeding
     try:
         translate_settings.validate_settings()
-        temp_settings = translate_settings.to_settings_model()
-        translate_settings.translation.output = original_output
-        translate_settings.pdf.pages = original_pages
-        translate_settings.gui_settings = original_gui_settings
         translate_settings.basic.gui = False
         translate_settings.basic.debug = False
-        translate_settings.translation.glossaries = None
-
-        # Determine if config should be saved based on save_mode
-        should_save = False
-        if save_mode == SaveMode.always:
-            should_save = True
-        elif save_mode == SaveMode.follow_settings:
-            should_save = not temp_settings.gui_settings.disable_config_auto_save
-        # SaveMode.never: should_save remains False
-
-        if should_save:
-            config_manager.write_user_default_config_file(settings=translate_settings)
-            global settings
-            settings = translate_settings
-        temp_settings.validate_settings()
-        return temp_settings
+        translate_settings.basic.input_files = set()
+        return translate_settings
     except ValueError as e:
         raise gr.Error(f"Invalid settings: {e}") from e
 
@@ -889,7 +916,8 @@ def build_ui_inputs(*args):
             service, lang_from, lang_to, page_range, page_input,
             no_mono, no_dual, dual_translate_first, use_alternating_pages_dual, watermark_output_mode,
             rate_limit_mode, rpm_input, concurrent_threads_input, custom_qps_input, custom_pool_max_workers_input,
-            prompt, min_text_length, rpc_doclayout, custom_system_prompt_input, glossary_file,
+            prompt_profile_input, prompt_override_file_input, model_param_profile_input, model_param_override_file_input,
+            min_text_length, rpc_doclayout, custom_system_prompt_input, glossary_file,
             save_auto_extracted_glossary, enable_auto_term_extraction, primary_font_family, skip_clean,
             disable_rich_text_translate, enhance_compatibility, split_short_lines, short_line_split_factor,
             translate_table_text, skip_scanned_detection, max_pages_per_part, formular_font_pattern,
@@ -919,7 +947,10 @@ def build_ui_inputs(*args):
         "concurrent_threads",  # mapped from concurrent_threads_input
         "custom_qps",  # mapped from custom_qps_input
         "custom_pool_workers",  # mapped from custom_pool_max_workers_input
-        "prompt",
+        "prompt_profile_input",
+        "prompt_override_file_input",
+        "model_param_profile_input",
+        "model_param_override_file_input",
         "min_text_length",
         "rpc_doclayout",
         "custom_system_prompt_input",
@@ -1573,6 +1604,8 @@ def save_config(
         - *ui_args: UI setting controls (see build_ui_inputs for details)
         - progress: The progress bar
     """
+    global settings
+
     # Setup progress tracking
     if progress is None:
         progress = gr.Progress()
@@ -1583,15 +1616,85 @@ def save_config(
     # Track progress
     progress(0, desc=_("Saving configuration..."))
 
-    # Prepare output directory
-    output_dir = Path("pdf2zh_files")
-
-    _build_translate_settings(
-        settings.clone(), config_fake_pdf_path, output_dir, SaveMode.always, ui_inputs
+    cli_settings = _build_cli_settings_from_ui(
+        base_settings=settings.clone(),
+        ui_inputs=ui_inputs,
     )
+    config_manager.write_user_default_config_file(settings=cli_settings.clone())
+    settings = cli_settings
 
     # Show success message
     gr.Info(_("Configuration saved to: {path}").format(path=DEFAULT_CONFIG_FILE))
+    return _build_config_status_markup(
+        _("Saved current settings to {path}.").format(path=DEFAULT_CONFIG_FILE),
+        level="success",
+    )
+
+
+def _build_config_status_markup(message: str, level: str = "info") -> str:
+    return (
+        f"<div class='config-status config-status-{level}'>"
+        f"<div class='config-status-label'>{_('Configuration')}</div>"
+        f"<div class='config-status-message'>{message}</div>"
+        "</div>"
+    )
+
+
+def _resolve_gradio_file_path(file_value) -> Path | None:
+    if not file_value:
+        return None
+    if isinstance(file_value, str):
+        return Path(file_value)
+    if hasattr(file_value, "name"):
+        return Path(file_value.name)
+    return Path(str(file_value))
+
+
+def _read_cli_settings_from_toml(file_value) -> CLIEnvSettingsModel:
+    config_path = _resolve_gradio_file_path(file_value)
+    if config_path is None:
+        raise gr.Error(_("No configuration file selected."))
+
+    try:
+        with config_path.open(encoding="utf-8") as f:
+            raw_content = tomlkit.load(f)
+    except Exception as e:
+        raise gr.Error(f"Failed to parse TOML config: {e}") from e
+
+    try:
+        parsed = config_manager._process_toml_content(dict(raw_content))
+        imported_settings = config_manager._build_model_from_args(
+            CLIEnvSettingsModel,
+            parsed,
+        )
+        imported_settings.validate_settings()
+        return imported_settings
+    except Exception as e:
+        raise gr.Error(f"Invalid configuration file: {e}") from e
+
+
+def export_config(
+    *ui_args,
+):
+    ui_inputs = build_ui_inputs(*ui_args)
+    cli_settings = _build_cli_settings_from_ui(
+        base_settings=settings.clone(),
+        ui_inputs=ui_inputs,
+    ).clone()
+    cli_settings.basic.input_files = set()
+
+    export_dir = DEFAULT_CONFIG_DIR / "exports"
+    export_dir.mkdir(parents=True, exist_ok=True)
+    export_path = export_dir / "pdfmathtranslate-config.toml"
+    config_manager._write_toml_file(export_path, cli_settings.model_dump(mode="json"))
+
+    return (
+        gr.update(value=str(export_path), visible=True),
+        _build_config_status_markup(
+            _("Prepared a TOML download from the current UI settings."),
+            level="info",
+        ),
+    )
 
 
 # Custom theme definition
@@ -1610,27 +1713,286 @@ custom_blue = gr.themes.Color(
 )
 
 custom_css = """
-    .secondary-text {color: #999 !important;}
+    :root {
+        --app-bg: radial-gradient(circle at top, #1f3f66 0%, #121821 34%, #090c12 72%);
+        --panel-bg: rgba(16, 20, 30, 0.92);
+        --panel-bg-soft: rgba(24, 29, 41, 0.92);
+        --panel-border: rgba(118, 147, 194, 0.18);
+        --panel-border-strong: rgba(118, 147, 194, 0.32);
+        --panel-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+        --text-main: #edf3ff;
+        --text-muted: #95a7c7;
+        --text-soft: #6f809e;
+        --accent: #4d92ff;
+        --accent-soft: rgba(77, 146, 255, 0.12);
+        --success-bg: rgba(37, 135, 89, 0.16);
+        --success-border: rgba(70, 196, 125, 0.35);
+        --warning-bg: rgba(217, 128, 29, 0.14);
+        --warning-border: rgba(238, 170, 73, 0.35);
+        --info-bg: rgba(77, 146, 255, 0.12);
+        --info-border: rgba(77, 146, 255, 0.35);
+    }
+
+    body {
+        background: var(--app-bg) !important;
+        color: var(--text-main) !important;
+    }
+
     footer {visibility: hidden}
-    .env-warning {color: #dd5500 !important;}
-    .env-success {color: #559900 !important;}
+    .secondary-text {color: var(--text-muted) !important;}
+    .env-warning {color: #ffb15c !important;}
+    .env-success {color: #78d48e !important;}
 
-    /* Add dashed border to input-file class */
+    .gradio-container {
+        max-width: 1380px !important;
+        padding: 28px 24px 56px !important;
+    }
+
+    .app-shell {
+        gap: 24px;
+    }
+
+    .app-hero {
+        padding: 24px 28px;
+        border: 1px solid var(--panel-border-strong);
+        border-radius: 18px;
+        background:
+            linear-gradient(135deg, rgba(77, 146, 255, 0.12), rgba(77, 146, 255, 0.03)),
+            rgba(8, 11, 17, 0.78);
+        box-shadow: var(--panel-shadow);
+        margin-bottom: 4px;
+    }
+
+    .app-hero h1 {
+        margin: 0 0 10px;
+        font-size: 2.3rem;
+        line-height: 1.05;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        color: var(--text-main);
+    }
+
+    .app-hero p {
+        margin: 0;
+        max-width: 860px;
+        color: var(--text-muted);
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+
+    .panel-card,
+    .preview-card,
+    .toolbar-card,
+    .action-card {
+        background: var(--panel-bg) !important;
+        border: 1px solid var(--panel-border) !important;
+        border-radius: 16px !important;
+        box-shadow: var(--panel-shadow) !important;
+        padding: 18px 18px 16px !important;
+    }
+
+    .preview-card {
+        background: rgba(10, 14, 22, 0.95) !important;
+    }
+
+    .panel-card + .panel-card,
+    .toolbar-card + .panel-card,
+    .panel-card + .action-card,
+    .action-card + .preview-card,
+    .preview-card + .panel-card {
+        margin-top: 2px;
+    }
+
+    .panel-heading {
+        margin: 0 0 6px;
+        font-size: 1.24rem;
+        font-weight: 760;
+        color: var(--text-main);
+        letter-spacing: -0.02em;
+    }
+
+    .panel-kicker {
+        margin: 0 0 20px;
+        color: var(--text-muted);
+        font-size: 0.94rem;
+        line-height: 1.55;
+    }
+
+    .toolbar-row {
+        align-items: end;
+        gap: 14px;
+    }
+
+    .toolbar-actions {
+        gap: 12px;
+    }
+
+    .toolbar-actions button,
+    .action-bar button {
+        min-height: 44px;
+        border-radius: 14px !important;
+    }
+
+    .config-status {
+        margin-top: 8px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        border: 1px solid var(--info-border);
+        background: var(--info-bg);
+    }
+
+    .config-status-success {
+        border-color: var(--success-border);
+        background: var(--success-bg);
+    }
+
+    .config-status-warning {
+        border-color: var(--warning-border);
+        background: var(--warning-bg);
+    }
+
+    .config-status-label {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--text-soft);
+        margin-bottom: 6px;
+    }
+
+    .config-status-message {
+        color: var(--text-main);
+        line-height: 1.5;
+    }
+
+    .readonly-note {
+        margin-bottom: 18px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px dashed var(--panel-border-strong);
+        background: rgba(255, 255, 255, 0.02);
+        color: var(--text-muted);
+        font-size: 0.92rem;
+    }
+
     .input-file {
-        border: 1.2px dashed #165DFF !important;
-        border-radius: 6px !important;
+        border: 1.2px dashed var(--accent) !important;
+        border-radius: 12px !important;
+        background: rgba(77, 146, 255, 0.05) !important;
     }
 
-    .progress-bar-wrap {
-        border-radius: 8px !important;
+    .gradio-container .block.gradio-group,
+    .gradio-container .block.gradio-accordion {
+        border-radius: 12px !important;
     }
 
+    .gradio-container .block.gradio-accordion {
+        border: 1px solid rgba(118, 147, 194, 0.14) !important;
+        background: var(--panel-bg-soft) !important;
+    }
+
+    .gradio-container .block.gradio-accordion .label-wrap {
+        font-weight: 650;
+    }
+
+    .panel-card .block.gradio-group,
+    .toolbar-card .block.gradio-group,
+    .action-card .block.gradio-group,
+    .preview-card .block.gradio-group {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+    }
+
+    .panel-card .gr-row,
+    .toolbar-card .gr-row,
+    .action-card .gr-row,
+    .preview-card .gr-row {
+        gap: 14px !important;
+        margin-bottom: 12px;
+    }
+
+    .panel-card .gr-row:last-child,
+    .toolbar-card .gr-row:last-child,
+    .action-card .gr-row:last-child,
+    .preview-card .gr-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .panel-card .gr-form,
+    .toolbar-card .gr-form,
+    .action-card .gr-form,
+    .preview-card .gr-form {
+        gap: 12px !important;
+    }
+
+    .gradio-container input,
+    .gradio-container textarea,
+    .gradio-container .wrap,
+    .gradio-container .form,
+    .gradio-container .scroll-hide {
+        border-radius: 10px !important;
+    }
+
+    .gradio-container .form,
+    .gradio-container .wrap {
+        background: rgba(255, 255, 255, 0.02) !important;
+        border-color: rgba(118, 147, 194, 0.12) !important;
+    }
+
+    .panel-card .label-wrap,
+    .toolbar-card .label-wrap,
+    .preview-card .label-wrap,
+    .action-card .label-wrap {
+        margin-bottom: 6px !important;
+    }
+
+    .panel-card .form,
+    .toolbar-card .form,
+    .action-card .form,
+    .preview-card .form {
+        padding-top: 2px;
+    }
+
+    .gradio-container .wrap:focus-within,
+    .gradio-container .form:focus-within {
+        border-color: rgba(77, 146, 255, 0.5) !important;
+        box-shadow: 0 0 0 1px rgba(77, 146, 255, 0.35) !important;
+    }
+
+    .gradio-container .wrap.svelte-1ipelgc,
+    .gradio-container .block.svelte-1ipelgc {
+        background: transparent;
+    }
+
+    .progress-bar-wrap,
     .progress-bar {
-        border-radius: 8px !important;
+        border-radius: 999px !important;
     }
 
     .pdf-canvas canvas {
         width: 100%;
+    }
+
+    .preview-card .pdf-canvas {
+        margin-top: 12px;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    @media (max-width: 900px) {
+        .gradio-container {
+            padding: 18px 14px 40px !important;
+        }
+
+        .app-hero {
+            padding: 20px 18px;
+            border-radius: 16px;
+        }
+
+        .app-hero h1 {
+            font-size: 1.8rem;
+        }
     }
     """
 
@@ -1676,7 +2038,14 @@ with gr.Blocks(
         render=False,
     )
     with Translate(get_translation_dic(translation_file_path), lang_selector):
-        gr.Markdown("# [PDFMathTranslate Next](https://pdf2zh-next.com)")
+        gr.HTML(
+            f"""
+            <section class="app-hero">
+                <h1>PDFMathTranslate Next</h1>
+                <p>{_('A single-column control panel for PDF translation on Linux-first deployments. Configure the job above, then review source and result PDFs below.')}</p>
+            </section>
+            """
+        )
 
         translation_engine_arg_inputs = []
         detail_text_inputs = []
@@ -1685,10 +2054,55 @@ with gr.Blocks(
         term_detail_text_inputs = []
         term_detail_text_input_index_map = {}
         LLM_support_index_map.clear()
-        with gr.Row():
-            with gr.Column(scale=1):
-                lang_selector.render()
-                gr.Markdown(_("## File(s)"))
+
+        for service_name in available_services:
+            metadata = TRANSLATION_ENGINE_METADATA_MAP[service_name]
+            LLM_support_index_map[metadata.translate_engine_type] = metadata.support_llm
+
+        llm_support_default = LLM_support_index_map.get(default_service, False)
+
+        with gr.Column(elem_classes=["app-shell"]):
+            with gr.Group(elem_classes=["toolbar-card"]):
+                gr.HTML(
+                    f"""
+                    <div class="panel-heading">{_('Configuration Workspace')}</div>
+                    <p class="panel-kicker">{_('Load the saved default profile, import a full TOML file for inspection, or export the exact settings currently shown in the UI.')}</p>
+                    """
+                )
+                with gr.Row(elem_classes=["toolbar-row"]):
+                    lang_selector.render()
+                    load_saved_btn = gr.Button(_("Load Saved Config"), variant="secondary")
+                    save_btn = gr.Button(_("Save Settings"), variant="secondary")
+                    export_config_btn = gr.Button(
+                        _("Download Current TOML"), variant="primary"
+                    )
+                with gr.Row(elem_classes=["toolbar-row"]):
+                    config_import_file = gr.File(
+                        label=_("Upload config (TOML)"),
+                        file_count="single",
+                        file_types=[".toml"],
+                        type="filepath",
+                    )
+                    config_download_file = gr.File(
+                        label=_("Current config download"),
+                        visible=False,
+                    )
+                config_status = gr.HTML(
+                    value=_build_config_status_markup(
+                        _("Saved configuration path: {path}").format(
+                            path=DEFAULT_CONFIG_FILE
+                        ),
+                        level="info",
+                    )
+                )
+
+            with gr.Group(elem_classes=["panel-card"]):
+                gr.HTML(
+                    f"""
+                    <div class="panel-heading">{_('Files')}</div>
+                    <p class="panel-kicker">{_('Choose local PDFs or a remote PDF link. Uploaded files stay available in the preview selector during this session.')}</p>
+                    """
+                )
                 file_type = gr.Radio(
                     choices=[("File(s)", "File"), ("Link", "Link")],
                     label="Type",
@@ -1712,8 +2126,13 @@ with gr.Blocks(
                     visible=False,
                 )
 
-                gr.Markdown(_("## Translation Options"))
-
+            with gr.Group(elem_classes=["panel-card"]):
+                gr.HTML(
+                    f"""
+                    <div class="panel-heading">{_('Common Settings')}</div>
+                    <p class="panel-kicker">{_('Edit the parameters that change most often. Service internals and advanced tuning stay in read-only sections below.')}</p>
+                    """
+                )
                 with gr.Row():
                     lang_from = gr.Dropdown(
                         label=_("Translate from"),
@@ -1726,140 +2145,71 @@ with gr.Blocks(
                         value=default_lang_to,
                     )
 
+                with gr.Row():
+                    service = gr.Dropdown(
+                        label=_("Service"),
+                        choices=available_services,
+                        value=default_service,
+                    )
+                    page_range = gr.Radio(
+                        choices=get_page_choices(),
+                        label="Pages",
+                        value="All" if not settings.pdf.pages else "Range",
+                    )
+
+                page_input = gr.Textbox(
+                    label=_("Page range (e.g., 1,3,5-10,-5)"),
+                    visible=bool(settings.pdf.pages),
+                    interactive=True,
+                    value=settings.pdf.pages or "",
+                    placeholder=_("e.g., 1,3,5-10"),
+                )
+
                 siliconflow_free_acknowledgement = gr.Markdown(
                     _(
                         "Free translation service provided by [SiliconFlow](https://siliconflow.cn)"
                     ),
-                    visible=True,
+                    visible=default_service == "SiliconFlowFree",
                 )
 
-                detail_index = 0
-                term_detail_index = 0
-                with gr.Group() as translation_engine_settings:
-                    service = gr.Dropdown(
-                        label=_("Service"),
-                        choices=available_services,
-                        value=available_services[0],
+                with gr.Group() as rate_limit_settings:
+                    rate_limit_mode = gr.Radio(
+                        choices=[
+                            ("RPM (Requests Per Minute)", "RPM"),
+                            ("Concurrent Requests", "Concurrent Threads"),
+                            ("Custom", "Custom"),
+                        ],
+                        label="Rate Limit Mode",
+                        value="Custom",
+                        interactive=True,
+                        visible=default_service != "SiliconFlowFree",
+                        info=_(
+                            "Choose the traffic control model for the main translation engine."
+                        ),
                     )
 
-                    __gui_service_arg_names = []
-                    for service_name in available_services:
-                        metadata = TRANSLATION_ENGINE_METADATA_MAP[service_name]
-                        LLM_support_index_map[metadata.translate_engine_type] = (
-                            metadata.support_llm
-                        )
-                        if not metadata.cli_detail_field_name:
-                            # no detail field, no need to show
-                            continue
-                        detail_settings = getattr(
-                            settings, metadata.cli_detail_field_name
-                        )
-                        visible = service.value == metadata.translate_engine_type
-
-                        # OpenAI specific settings (initially visible if OpenAI is default)
-                        with gr.Group(visible=True) as service_detail:
-                            detail_text_input_index_map[
-                                metadata.translate_engine_type
-                            ] = []
-                            for (
-                                field_name,
-                                field,
-                            ) in metadata.setting_model_type.model_fields.items():
-                                if disable_gui_sensitive_input:
-                                    if field_name in GUI_SENSITIVE_FIELDS:
-                                        continue
-                                    if field_name in GUI_PASSWORD_FIELDS:
-                                        continue
-                                if field.default_factory:
-                                    continue
-
-                                if field_name == "translate_engine_type":
-                                    continue
-                                if field_name == "support_llm":
-                                    continue
-                                type_hint = field.annotation
-                                original_type = typing.get_origin(type_hint)
-                                type_args = typing.get_args(type_hint)
-                                value = getattr(detail_settings, field_name)
-                                if (
-                                    type_hint is str
-                                    or str in type_args
-                                    or type_hint is int
-                                    or int in type_args
-                                ):
-                                    if field_name in GUI_PASSWORD_FIELDS:
-                                        field_input = gr.Textbox(
-                                            label=field.description,
-                                            value=value,
-                                            interactive=True,
-                                            type="password",
-                                            visible=visible,
-                                        )
-                                    else:
-                                        field_input = gr.Textbox(
-                                            label=field.description,
-                                            value=value,
-                                            interactive=True,
-                                            visible=visible,
-                                        )
-                                elif type_hint is bool or bool in type_args:
-                                    field_input = gr.Checkbox(
-                                        label=field.description,
-                                        value=value,
-                                        interactive=True,
-                                        visible=visible,
-                                    )
-                                else:
-                                    raise Exception(
-                                        f"Unsupported type {type_hint} for field {field_name} in gui translation engine settings"
-                                    )
-                                detail_text_input_index_map[
-                                    metadata.translate_engine_type
-                                ].append(detail_index)
-                                detail_index += 1
-                                detail_text_inputs.append(field_input)
-                                __gui_service_arg_names.append(field_name)
-                                translation_engine_arg_inputs.append(field_input)
-                    with gr.Group() as rate_limit_settings:
-                        rate_limit_mode = gr.Radio(
-                            choices=[
-                                ("RPM (Requests Per Minute)", "RPM"),
-                                ("Concurrent Requests", "Concurrent Threads"),
-                                ("Custom", "Custom"),
-                            ],
-                            label="Rate Limit Mode",
-                            value="Custom",
-                            interactive=True,
-                            visible=False,
-                            info="Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button",
-                        )
-
+                    with gr.Row():
                         rpm_input = gr.Number(
                             label=_("RPM (Requests Per Minute)"),
-                            value=240,  # More conservative default value
+                            value=240,
                             precision=0,
                             minimum=1,
                             maximum=60000,
                             interactive=True,
                             visible=False,
-                            info=_(
-                                "Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM"
-                            ),
                         )
 
                         concurrent_threads_input = gr.Number(
                             label=_("Concurrent Threads"),
-                            value=20,  # More conservative default value
+                            value=20,
                             precision=0,
                             minimum=1,
                             maximum=1000,
                             interactive=True,
                             visible=False,
-                            info=_(
-                                "Maximum number of requests processed simultaneously"
-                            ),
                         )
 
+                    with gr.Row():
                         custom_qps_input = gr.Number(
                             label=_("QPS (Queries Per Second)"),
                             value=settings.translation.qps or 4,
@@ -1867,8 +2217,7 @@ with gr.Blocks(
                             minimum=1,
                             maximum=1000,
                             interactive=True,
-                            visible=False,
-                            info=_("Number of requests sent per second"),
+                            visible=default_service != "SiliconFlowFree",
                         )
 
                         custom_pool_max_workers_input = gr.Number(
@@ -1878,213 +2227,22 @@ with gr.Blocks(
                             minimum=0,
                             maximum=1000,
                             interactive=True,
-                            visible=False,
-                            info=_(
-                                "If not set or set to 0, QPS will be used as the number of workers"
-                            ),
+                            visible=default_service != "SiliconFlowFree",
                         )
 
-                # Term extraction options (engine + rate limit + detail settings)
-                with gr.Accordion(_("Auto Term Extraction"), open=True):
-                    enable_auto_term_extraction = gr.Checkbox(
-                        label=_("Enable auto term extraction"),
-                        value=not settings.translation.no_auto_extract_glossary,
+                with gr.Row():
+                    only_include_translated_page = gr.Checkbox(
+                        label=_("Only include translated pages in the output PDF."),
+                        info=_("Effective only when a page range is specified."),
+                        value=settings.pdf.only_include_translated_page,
+                        interactive=True,
+                    )
+                    ignore_cache = gr.Checkbox(
+                        label=_("Ignore cache"),
+                        value=settings.translation.ignore_cache,
                         interactive=True,
                     )
 
-                    term_disabled_info = gr.Markdown(
-                        _(
-                            "Auto term extraction is disabled. Term extraction settings below will not take effect until it is enabled."
-                        ),
-                        visible=settings.translation.no_auto_extract_glossary,
-                    )
-
-                    with gr.Group(visible=True) as term_settings_group:
-                        term_service = gr.Dropdown(
-                            label=_("Term extraction engine"),
-                            choices=[
-                                (
-                                    _("Follow main translation engine"),
-                                    "Follow main translation engine",
-                                )
-                            ]
-                            + [
-                                metadata.translate_engine_type
-                                for metadata in TERM_EXTRACTION_ENGINE_METADATA
-                            ],
-                            value="Follow main translation engine",
-                        )
-
-                        # Term engine detail settings
-                        __gui_term_service_arg_names = []
-                        for term_metadata in TERM_EXTRACTION_ENGINE_METADATA:
-                            if not term_metadata.cli_detail_field_name:
-                                continue
-                            term_detail_field_name = (
-                                f"term_{term_metadata.cli_detail_field_name}"
-                            )
-                            term_detail_settings = getattr(
-                                settings, term_detail_field_name
-                            )
-
-                            # Term engine settings group should stay visible;
-                            # visibility is controlled by each field input.
-                            with gr.Group() as term_service_detail:
-                                term_detail_text_input_index_map[
-                                    term_metadata.translate_engine_type
-                                ] = []
-                                for (
-                                    field_name,
-                                    field,
-                                ) in term_metadata.term_setting_model_type.model_fields.items():
-                                    if field_name in (
-                                        "translate_engine_type",
-                                        "support_llm",
-                                    ):
-                                        continue
-                                    if field.default_factory:
-                                        continue
-
-                                    base_field_name = field_name
-                                    if base_field_name.startswith("term_"):
-                                        base_name = base_field_name[len("term_") :]
-                                    else:
-                                        base_name = base_field_name
-
-                                    if disable_gui_sensitive_input:
-                                        if base_name in GUI_SENSITIVE_FIELDS:
-                                            continue
-                                        if base_name in GUI_PASSWORD_FIELDS:
-                                            continue
-
-                                    type_hint = field.annotation
-                                    original_type = typing.get_origin(type_hint)
-                                    type_args = typing.get_args(type_hint)
-                                    value = getattr(term_detail_settings, field_name)
-
-                                    if (
-                                        type_hint is str
-                                        or str in type_args
-                                        or type_hint is int
-                                        or int in type_args
-                                    ):
-                                        if base_name in GUI_PASSWORD_FIELDS:
-                                            field_input = gr.Textbox(
-                                                label=field.description,
-                                                value=value,
-                                                interactive=True,
-                                                type="password",
-                                                visible=False,
-                                            )
-                                        else:
-                                            field_input = gr.Textbox(
-                                                label=field.description,
-                                                value=value,
-                                                interactive=True,
-                                                visible=False,
-                                            )
-                                    elif type_hint is bool or bool in type_args:
-                                        field_input = gr.Checkbox(
-                                            label=field.description,
-                                            value=value,
-                                            interactive=True,
-                                            visible=False,
-                                        )
-                                    else:
-                                        raise Exception(
-                                            f"Unsupported type {type_hint} for field {field_name} in gui term extraction engine settings"
-                                        )
-
-                                    term_detail_text_input_index_map[
-                                        term_metadata.translate_engine_type
-                                    ].append(term_detail_index)
-                                    term_detail_index += 1
-                                    term_detail_text_inputs.append(field_input)
-                                    __gui_term_service_arg_names.append(field_name)
-                                    translation_engine_arg_inputs.append(field_input)
-
-                        term_rate_limit_mode = gr.Radio(
-                            choices=[
-                                ("RPM (Requests Per Minute)", "RPM"),
-                                ("Concurrent Requests", "Concurrent Threads"),
-                                ("Custom", "Custom"),
-                            ],
-                            label="Term rate limit mode",
-                            value="Custom",
-                            interactive=True,
-                        )
-
-                        term_rpm_input = gr.Number(
-                            label=_("Term RPM (Requests Per Minute)"),
-                            value=240,
-                            precision=0,
-                            minimum=1,
-                            maximum=60000,
-                            interactive=True,
-                            visible=False,
-                        )
-
-                        term_concurrent_threads_input = gr.Number(
-                            label=_("Term concurrent threads"),
-                            value=20,
-                            precision=0,
-                            minimum=1,
-                            maximum=1000,
-                            interactive=True,
-                            visible=False,
-                        )
-
-                        term_custom_qps_input = gr.Number(
-                            label=_("Term QPS (Queries Per Second)"),
-                            value=(
-                                settings.translation.term_qps
-                                or settings.translation.qps
-                                or 4
-                            ),
-                            precision=0,
-                            minimum=1,
-                            maximum=1000,
-                            interactive=True,
-                            visible=True,
-                        )
-
-                        term_custom_pool_max_workers_input = gr.Number(
-                            label=_("Term pool max workers"),
-                            value=settings.translation.term_pool_max_workers,
-                            precision=0,
-                            minimum=0,
-                            maximum=1000,
-                            interactive=True,
-                            visible=True,
-                        )
-
-                page_range = gr.Radio(
-                    choices=[
-                        ("All", "All"),
-                        ("First", "First"),
-                        ("First 5 pages", "First 5 pages"),
-                        ("Range", "Range"),
-                    ],
-                    label="Pages",
-                    value="All",
-                )
-
-                page_input = gr.Textbox(
-                    label=_("Page range (e.g., 1,3,5-10,-5)"),
-                    visible=False,
-                    interactive=True,
-                    placeholder=_("e.g., 1,3,5-10"),
-                )
-
-                only_include_translated_page = gr.Checkbox(
-                    label=_("Only include translated pages in the output PDF."),
-                    info=_("Effective only when a page range is specified."),
-                    value=settings.pdf.only_include_translated_page,
-                    interactive=True,
-                )
-
-                # PDF Output Options
-                gr.Markdown(_("## PDF Output Options"))
                 with gr.Row():
                     no_mono = gr.Checkbox(
                         label=_("Disable monolingual output"),
@@ -2109,237 +2267,508 @@ with gr.Blocks(
                         interactive=True,
                     )
 
-                watermark_output_mode = gr.Radio(
-                    choices=[
-                        ("Watermarked", "Watermarked"),
-                        ("No Watermark", "No Watermark"),
-                    ],
-                    label="Watermark mode",
-                    value="Watermarked"
-                    if settings.pdf.watermark_output_mode == "watermarked"
-                    else "No Watermark",
-                )
-
-                # Additional translation options
-                with gr.Accordion(_("Advanced Options"), open=False):
-                    prompt = gr.Textbox(
-                        label=_("Custom prompt for translation"),
-                        value="",
-                        visible=False,
-                        interactive=True,
-                        placeholder=_("Custom prompt for the translator"),
+                with gr.Row():
+                    watermark_output_mode = gr.Radio(
+                        choices=[
+                            ("Watermarked", "Watermarked"),
+                            ("No Watermark", "No Watermark"),
+                        ],
+                        label="Watermark mode",
+                        value="Watermarked"
+                        if settings.pdf.watermark_output_mode == "watermarked"
+                        else "No Watermark",
                     )
-
-                    # New Textbox for custom_system_prompt
-                    custom_system_prompt_input = gr.Textbox(
-                        label=_("Custom System Prompt"),
-                        value=settings.translation.custom_system_prompt or "",
-                        interactive=True,
-                        placeholder=_(
-                            "e.g. /no_think You are a professional zh-CN native translator who needs to fluently translate text into zh-CN."
-                        ),
-                    )
-
-                    min_text_length = gr.Number(
-                        label=_("Minimum text length to translate"),
-                        value=settings.translation.min_text_length,
-                        precision=0,
-                        minimum=0,
-                        interactive=True,
-                    )
-
-                    rpc_doclayout = gr.Textbox(
-                        label=_("RPC service for document layout analysis (optional)"),
-                        value=settings.translation.rpc_doclayout or "",
-                        visible=False,
-                        interactive=True,
-                        placeholder="http://host:port",
-                    )
-
                     save_auto_extracted_glossary = gr.Checkbox(
-                        label=_("save automatically extracted glossary"),
+                        label=_("Save automatically extracted glossary"),
                         value=settings.translation.save_auto_extracted_glossary,
                         interactive=True,
                     )
 
-                    primary_font_family = gr.Dropdown(
-                        label=_("Primary font family for translated text"),
-                        choices=["Auto", "serif", "sans-serif", "script"],
-                        value="Auto"
-                        if not settings.translation.primary_font_family
-                        else settings.translation.primary_font_family,
-                        interactive=True,
-                    )
+                enable_auto_term_extraction = gr.Checkbox(
+                    label=_("Enable auto term extraction"),
+                    value=not settings.translation.no_auto_extract_glossary,
+                    interactive=True,
+                )
 
-                    glossary_file = gr.File(
-                        label=_("Glossary File"),
-                        file_count="multiple",
-                        file_types=[".csv"],
-                        type="binary",
-                        visible=True,
-                    )
-                    require_llm_translator_inputs.append(glossary_file)
+                term_disabled_info = gr.Markdown(
+                    _(
+                        "Auto term extraction is disabled. The read-only term engine details below will not be applied until you enable it."
+                    ),
+                    visible=settings.translation.no_auto_extract_glossary,
+                )
 
-                    glossary_table = gr.Dataframe(
-                        headers=["source", "target"],
-                        datatype=["str", "str"],
+                glossary_file = gr.File(
+                    label=_("Glossary File"),
+                    file_count="multiple",
+                    file_types=[".csv"],
+                    type="binary",
+                    visible=llm_support_default,
+                )
+                require_llm_translator_inputs.append(glossary_file)
+
+                glossary_table = gr.Dataframe(
+                    headers=["source", "target"],
+                    datatype=["str", "str"],
+                    interactive=False,
+                    col_count=(2, "fixed"),
+                    visible=False,
+                )
+                require_llm_translator_inputs.append(glossary_table)
+
+            detail_index = 0
+            with gr.Accordion(
+                _("Service Profile (Read-only)"),
+                open=False,
+                elem_classes=["panel-card"],
+            ):
+                gr.Markdown(
+                    _("Read-only in WebUI. Use TOML import or export to modify service credentials and model-specific fields."),
+                    elem_classes=["readonly-note"],
+                )
+                __gui_service_arg_names = []
+                for service_name in available_services:
+                    metadata = TRANSLATION_ENGINE_METADATA_MAP[service_name]
+                    if not metadata.cli_detail_field_name:
+                        continue
+                    detail_settings = getattr(settings, metadata.cli_detail_field_name)
+                    visible = default_service == metadata.translate_engine_type
+
+                    with gr.Group(visible=True):
+                        detail_text_input_index_map[
+                            metadata.translate_engine_type
+                        ] = []
+                        for field_name, field in metadata.setting_model_type.model_fields.items():
+                            if disable_gui_sensitive_input:
+                                if field_name in GUI_SENSITIVE_FIELDS:
+                                    continue
+                                if field_name in GUI_PASSWORD_FIELDS:
+                                    continue
+                            if field.default_factory:
+                                continue
+                            if field_name in ("translate_engine_type", "support_llm"):
+                                continue
+                            type_hint = field.annotation
+                            type_args = typing.get_args(type_hint)
+                            value = getattr(detail_settings, field_name)
+                            if (
+                                type_hint is str
+                                or str in type_args
+                                or type_hint is int
+                                or int in type_args
+                            ):
+                                field_input = gr.Textbox(
+                                    label=field.description,
+                                    value=value,
+                                    interactive=False,
+                                    type=(
+                                        "password"
+                                        if field_name in GUI_PASSWORD_FIELDS
+                                        else "text"
+                                    ),
+                                    visible=visible,
+                                )
+                            elif type_hint is bool or bool in type_args:
+                                field_input = gr.Checkbox(
+                                    label=field.description,
+                                    value=value,
+                                    interactive=False,
+                                    visible=visible,
+                                )
+                            else:
+                                raise Exception(
+                                    f"Unsupported type {type_hint} for field {field_name} in gui translation engine settings"
+                                )
+                            detail_text_input_index_map[
+                                metadata.translate_engine_type
+                            ].append(detail_index)
+                            detail_index += 1
+                            detail_text_inputs.append(field_input)
+                            __gui_service_arg_names.append(field_name)
+                            translation_engine_arg_inputs.append(field_input)
+
+            term_detail_index = 0
+            with gr.Accordion(
+                _("Advanced Settings (Read-only)"),
+                open=False,
+                elem_classes=["panel-card"],
+            ):
+                gr.Markdown(
+                    _("These fields stay read-only in the browser to keep the common workflow compact. Change them through TOML import/export when needed."),
+                    elem_classes=["readonly-note"],
+                )
+                prompt_profile_input = gr.Textbox(
+                    label=_("Prompt profile"),
+                    value=settings.translation.prompt_profile,
+                    interactive=False,
+                    placeholder=_("default"),
+                )
+
+                prompt_override_file_input = gr.Textbox(
+                    label=_("Prompt override file"),
+                    value=settings.translation.prompt_override_file or "",
+                    interactive=False,
+                    placeholder=_("/path/to/prompt-overrides.yaml"),
+                )
+
+                model_param_profile_input = gr.Textbox(
+                    label=_("Model param profile"),
+                    value=settings.translation.model_param_profile,
+                    interactive=False,
+                    placeholder=_("default"),
+                )
+
+                model_param_override_file_input = gr.Textbox(
+                    label=_("Model param override file"),
+                    value=settings.translation.model_param_override_file or "",
+                    interactive=False,
+                    placeholder=_("/path/to/model-param-overrides.yaml"),
+                )
+
+                custom_system_prompt_input = gr.Textbox(
+                    label=_("Custom System Prompt"),
+                    value=settings.translation.custom_system_prompt or "",
+                    interactive=False,
+                    placeholder=_(
+                        "e.g. /no_think You are a professional zh-CN native translator who needs to fluently translate text into zh-CN."
+                    ),
+                )
+
+                min_text_length = gr.Number(
+                    label=_("Minimum text length to translate"),
+                    value=settings.translation.min_text_length,
+                    precision=0,
+                    minimum=0,
+                    interactive=False,
+                )
+
+                rpc_doclayout = gr.Textbox(
+                    label=_("RPC service for document layout analysis (optional)"),
+                    value=settings.translation.rpc_doclayout or "",
+                    interactive=False,
+                    placeholder="http://host:port",
+                )
+
+                primary_font_family = gr.Dropdown(
+                    label=_("Primary font family for translated text"),
+                    choices=["Auto", "serif", "sans-serif", "script"],
+                    value="Auto"
+                    if not settings.translation.primary_font_family
+                    else settings.translation.primary_font_family,
+                    interactive=False,
+                )
+
+                term_service = gr.Dropdown(
+                    label=_("Term extraction engine"),
+                    choices=[
+                        (
+                            _("Follow main translation engine"),
+                            "Follow main translation engine",
+                        )
+                    ]
+                    + [
+                        metadata.translate_engine_type
+                        for metadata in TERM_EXTRACTION_ENGINE_METADATA
+                    ],
+                    value=default_term_service,
+                    interactive=False,
+                )
+
+                term_rate_limit_mode = gr.Radio(
+                    choices=[
+                        ("RPM (Requests Per Minute)", "RPM"),
+                        ("Concurrent Requests", "Concurrent Threads"),
+                        ("Custom", "Custom"),
+                    ],
+                    label="Term rate limit mode",
+                    value="Custom",
+                    interactive=False,
+                )
+
+                with gr.Row():
+                    term_rpm_input = gr.Number(
+                        label=_("Term RPM (Requests Per Minute)"),
+                        value=240,
+                        precision=0,
+                        minimum=1,
+                        maximum=60000,
                         interactive=False,
-                        col_count=(2, "fixed"),
                         visible=False,
                     )
-                    require_llm_translator_inputs.append(glossary_table)
 
-                    # PDF options section
-                    gr.Markdown(_("### PDF Options"))
-
-                    skip_clean = gr.Checkbox(
-                        label=_("Skip clean (maybe improve compatibility)"),
-                        value=settings.pdf.skip_clean,
-                        interactive=True,
+                    term_concurrent_threads_input = gr.Number(
+                        label=_("Term concurrent threads"),
+                        value=20,
+                        precision=0,
+                        minimum=1,
+                        maximum=1000,
+                        interactive=False,
+                        visible=False,
                     )
 
-                    disable_rich_text_translate = gr.Checkbox(
-                        label=_(
-                            "Disable rich text translation (maybe improve compatibility)"
+                with gr.Row():
+                    term_custom_qps_input = gr.Number(
+                        label=_("Term QPS (Queries Per Second)"),
+                        value=(
+                            settings.translation.term_qps
+                            or settings.translation.qps
+                            or 4
                         ),
-                        value=settings.pdf.disable_rich_text_translate,
-                        interactive=True,
+                        precision=0,
+                        minimum=1,
+                        maximum=1000,
+                        interactive=False,
+                        visible=True,
                     )
 
-                    enhance_compatibility = gr.Checkbox(
-                        label=_(
-                            "Enhance compatibility (auto-enables skip_clean and disable_rich_text)"
-                        ),
-                        value=settings.pdf.enhance_compatibility,
-                        interactive=True,
-                    )
-
-                    split_short_lines = gr.Checkbox(
-                        label=_("Force split short lines into different paragraphs"),
-                        value=settings.pdf.split_short_lines,
-                        interactive=True,
-                    )
-
-                    short_line_split_factor = gr.Slider(
-                        label=_("Split threshold factor for short lines"),
-                        value=settings.pdf.short_line_split_factor,
-                        minimum=0.1,
-                        maximum=1.0,
-                        step=0.1,
-                        interactive=True,
-                        visible=settings.pdf.split_short_lines,
-                    )
-
-                    translate_table_text = gr.Checkbox(
-                        label=_("Translate table text (experimental)"),
-                        value=settings.pdf.translate_table_text,
-                        interactive=True,
-                    )
-
-                    skip_scanned_detection = gr.Checkbox(
-                        label=_("Skip scanned detection"),
-                        value=settings.pdf.skip_scanned_detection,
-                        interactive=True,
-                    )
-
-                    ocr_workaround = gr.Checkbox(
-                        label=_(
-                            "OCR workaround (experimental, will auto enable Skip scanned detection in backend)"
-                        ),
-                        value=settings.pdf.ocr_workaround,
-                        interactive=True,
-                    )
-
-                    auto_enable_ocr_workaround = gr.Checkbox(
-                        label=_(
-                            "Auto enable OCR workaround (enable automatic OCR workaround for heavily scanned documents)"
-                        ),
-                        value=settings.pdf.auto_enable_ocr_workaround,
-                        interactive=True,
-                    )
-
-                    max_pages_per_part = gr.Number(
-                        label=_(
-                            "Maximum pages per part (for auto-split translation, 0 means no limit)"
-                        ),
-                        value=settings.pdf.max_pages_per_part,
+                    term_custom_pool_max_workers_input = gr.Number(
+                        label=_("Term pool max workers"),
+                        value=settings.translation.term_pool_max_workers,
                         precision=0,
                         minimum=0,
-                        interactive=True,
+                        maximum=1000,
+                        interactive=False,
+                        visible=True,
                     )
 
-                    formular_font_pattern = gr.Textbox(
-                        label=_(
-                            "Font pattern to identify formula text (regex, not recommended to change)"
-                        ),
-                        value=settings.pdf.formular_font_pattern or "",
-                        interactive=True,
-                        placeholder="e.g., CMMI|CMR",
-                    )
+                __gui_term_service_arg_names = []
+                for term_metadata in TERM_EXTRACTION_ENGINE_METADATA:
+                    if not term_metadata.cli_detail_field_name:
+                        continue
+                    term_detail_field_name = f"term_{term_metadata.cli_detail_field_name}"
+                    term_detail_settings = getattr(settings, term_detail_field_name)
 
-                    formular_char_pattern = gr.Textbox(
-                        label=_(
-                            "Character pattern to identify formula text (regex, not recommended to change)"
-                        ),
-                        value=settings.pdf.formular_char_pattern or "",
-                        interactive=True,
-                        placeholder="e.g., [∫∬∭∮∯∰∇∆]",
-                    )
+                    with gr.Group():
+                        term_detail_text_input_index_map[
+                            term_metadata.translate_engine_type
+                        ] = []
+                        for field_name, field in term_metadata.term_setting_model_type.model_fields.items():
+                            if field_name in ("translate_engine_type", "support_llm"):
+                                continue
+                            if field.default_factory:
+                                continue
 
-                    ignore_cache = gr.Checkbox(
-                        label=_("Ignore cache"),
-                        value=settings.translation.ignore_cache,
-                        interactive=True,
-                    )
+                            base_field_name = field_name
+                            if base_field_name.startswith("term_"):
+                                base_name = base_field_name[len("term_") :]
+                            else:
+                                base_name = base_field_name
 
-                    # BabelDOC v0.5.1 new options
-                    gr.Markdown(_("#### BabelDOC Advanced Options"))
+                            if disable_gui_sensitive_input:
+                                if base_name in GUI_SENSITIVE_FIELDS:
+                                    continue
+                                if base_name in GUI_PASSWORD_FIELDS:
+                                    continue
 
-                    merge_alternating_line_numbers = gr.Checkbox(
-                        label=_("Merge alternating line numbers"),
-                        info=_(
-                            "Handle alternating line numbers and text paragraphs in documents with line numbers"
-                        ),
-                        value=not settings.pdf.no_merge_alternating_line_numbers,
-                        interactive=True,
-                    )
+                            type_hint = field.annotation
+                            type_args = typing.get_args(type_hint)
+                            value = getattr(term_detail_settings, field_name)
+                            visible = (
+                                term_metadata.translate_engine_type == default_term_service
+                            )
 
-                    remove_non_formula_lines = gr.Checkbox(
-                        label=_("Remove non-formula lines"),
-                        info=_("Remove non-formula lines within paragraph areas"),
-                        value=not settings.pdf.no_remove_non_formula_lines,
-                        interactive=True,
-                    )
+                            if (
+                                type_hint is str
+                                or str in type_args
+                                or type_hint is int
+                                or int in type_args
+                            ):
+                                field_input = gr.Textbox(
+                                    label=field.description,
+                                    value=value,
+                                    interactive=False,
+                                    type=(
+                                        "password"
+                                        if base_name in GUI_PASSWORD_FIELDS
+                                        else "text"
+                                    ),
+                                    visible=visible,
+                                )
+                            elif type_hint is bool or bool in type_args:
+                                field_input = gr.Checkbox(
+                                    label=field.description,
+                                    value=value,
+                                    interactive=False,
+                                    visible=visible,
+                                )
+                            else:
+                                raise Exception(
+                                    f"Unsupported type {type_hint} for field {field_name} in gui term extraction engine settings"
+                                )
 
-                    non_formula_line_iou_threshold = gr.Slider(
-                        label=_("Non-formula line IoU threshold"),
-                        info=_("IoU threshold for identifying non-formula lines"),
-                        value=settings.pdf.non_formula_line_iou_threshold,
-                        minimum=0.0,
-                        maximum=1.0,
-                        step=0.05,
-                        interactive=True,
-                    )
+                            term_detail_text_input_index_map[
+                                term_metadata.translate_engine_type
+                            ].append(term_detail_index)
+                            term_detail_index += 1
+                            term_detail_text_inputs.append(field_input)
+                            __gui_term_service_arg_names.append(field_name)
+                            translation_engine_arg_inputs.append(field_input)
 
-                    figure_table_protection_threshold = gr.Slider(
-                        label=_("Figure/table protection threshold"),
-                        info=_(
-                            "Protection threshold for figures and tables (lines within figures/tables will not be processed)"
-                        ),
-                        value=settings.pdf.figure_table_protection_threshold,
-                        minimum=0.0,
-                        maximum=1.0,
-                        step=0.05,
-                        interactive=True,
-                    )
+                gr.Markdown(_("### PDF Options"))
 
-                    skip_formula_offset_calculation = gr.Checkbox(
-                        label=_("Skip formula offset calculation"),
-                        info=_("Skip formula offset calculation during processing"),
-                        value=settings.pdf.skip_formula_offset_calculation,
-                        interactive=True,
-                    )
+                skip_clean = gr.Checkbox(
+                    label=_("Skip clean (maybe improve compatibility)"),
+                    value=settings.pdf.skip_clean,
+                    interactive=False,
+                )
 
+                disable_rich_text_translate = gr.Checkbox(
+                    label=_(
+                        "Disable rich text translation (maybe improve compatibility)"
+                    ),
+                    value=settings.pdf.disable_rich_text_translate,
+                    interactive=False,
+                )
+
+                enhance_compatibility = gr.Checkbox(
+                    label=_(
+                        "Enhance compatibility (auto-enables skip_clean and disable_rich_text)"
+                    ),
+                    value=settings.pdf.enhance_compatibility,
+                    interactive=False,
+                )
+
+                split_short_lines = gr.Checkbox(
+                    label=_("Force split short lines into different paragraphs"),
+                    value=settings.pdf.split_short_lines,
+                    interactive=False,
+                )
+
+                short_line_split_factor = gr.Slider(
+                    label=_("Split threshold factor for short lines"),
+                    value=settings.pdf.short_line_split_factor,
+                    minimum=0.1,
+                    maximum=1.0,
+                    step=0.1,
+                    interactive=False,
+                    visible=settings.pdf.split_short_lines,
+                )
+
+                translate_table_text = gr.Checkbox(
+                    label=_("Translate table text (experimental)"),
+                    value=settings.pdf.translate_table_text,
+                    interactive=False,
+                )
+
+                skip_scanned_detection = gr.Checkbox(
+                    label=_("Skip scanned detection"),
+                    value=settings.pdf.skip_scanned_detection,
+                    interactive=False,
+                )
+
+                ocr_workaround = gr.Checkbox(
+                    label=_(
+                        "OCR workaround (experimental, will auto enable Skip scanned detection in backend)"
+                    ),
+                    value=settings.pdf.ocr_workaround,
+                    interactive=False,
+                )
+
+                auto_enable_ocr_workaround = gr.Checkbox(
+                    label=_(
+                        "Auto enable OCR workaround (enable automatic OCR workaround for heavily scanned documents)"
+                    ),
+                    value=settings.pdf.auto_enable_ocr_workaround,
+                    interactive=False,
+                )
+
+                max_pages_per_part = gr.Number(
+                    label=_(
+                        "Maximum pages per part (for auto-split translation, 0 means no limit)"
+                    ),
+                    value=settings.pdf.max_pages_per_part,
+                    precision=0,
+                    minimum=0,
+                    interactive=False,
+                )
+
+                formular_font_pattern = gr.Textbox(
+                    label=_(
+                        "Font pattern to identify formula text (regex, not recommended to change)"
+                    ),
+                    value=settings.pdf.formular_font_pattern or "",
+                    interactive=False,
+                    placeholder="e.g., CMMI|CMR",
+                )
+
+                formular_char_pattern = gr.Textbox(
+                    label=_(
+                        "Character pattern to identify formula text (regex, not recommended to change)"
+                    ),
+                    value=settings.pdf.formular_char_pattern or "",
+                    interactive=False,
+                    placeholder="e.g., [∫∬∭∮∯∰∇∆]",
+                )
+
+                gr.Markdown(_("#### BabelDOC Advanced Options"))
+
+                merge_alternating_line_numbers = gr.Checkbox(
+                    label=_("Merge alternating line numbers"),
+                    info=_(
+                        "Handle alternating line numbers and text paragraphs in documents with line numbers"
+                    ),
+                    value=not settings.pdf.no_merge_alternating_line_numbers,
+                    interactive=False,
+                )
+
+                remove_non_formula_lines = gr.Checkbox(
+                    label=_("Remove non-formula lines"),
+                    info=_("Remove non-formula lines within paragraph areas"),
+                    value=not settings.pdf.no_remove_non_formula_lines,
+                    interactive=False,
+                )
+
+                non_formula_line_iou_threshold = gr.Slider(
+                    label=_("Non-formula line IoU threshold"),
+                    info=_("IoU threshold for identifying non-formula lines"),
+                    value=settings.pdf.non_formula_line_iou_threshold,
+                    minimum=0.0,
+                    maximum=1.0,
+                    step=0.05,
+                    interactive=False,
+                )
+
+                figure_table_protection_threshold = gr.Slider(
+                    label=_("Figure/table protection threshold"),
+                    info=_(
+                        "Protection threshold for figures and tables (lines within figures/tables will not be processed)"
+                    ),
+                    value=settings.pdf.figure_table_protection_threshold,
+                    minimum=0.0,
+                    maximum=1.0,
+                    step=0.05,
+                    interactive=False,
+                )
+
+                skip_formula_offset_calculation = gr.Checkbox(
+                    label=_("Skip formula offset calculation"),
+                    info=_("Skip formula offset calculation during processing"),
+                    value=settings.pdf.skip_formula_offset_calculation,
+                    interactive=False,
+                )
+
+            with gr.Group(elem_classes=["action-card"]):
+                gr.HTML(
+                    f"""
+                    <div class="panel-heading">{_('Run Translation')}</div>
+                    <p class="panel-kicker">{_('Start translation with the common settings above. Use TOML import/export if the read-only sections need adjustments.')}</p>
+                    """
+                )
+                with gr.Row(elem_classes=["action-bar"]):
+                    translate_btn = gr.Button(_("Translate"), variant="primary")
+                    cancel_btn = gr.Button(_("Cancel"), variant="secondary")
+
+            with gr.Group(elem_classes=["preview-card"]):
+                gr.HTML(
+                    f"""
+                    <div class="panel-heading">{_('Preview & Downloads')}</div>
+                    <p class="panel-kicker">{_('Preview uploaded PDFs and translated outputs in one place. Download individual results or archive bundles after the run finishes.')}</p>
+                    """
+                )
+                result_file_selector = gr.Dropdown(
+                    label=_("Select File to Preview/Download"),
+                    visible=False,
+                    interactive=True,
+                )
                 output_title = gr.Markdown(_("## Translated"), visible=False)
                 output_file_mono = gr.File(
                     label=_("Download Translation (Mono)"), visible=False
@@ -2350,7 +2779,6 @@ with gr.Blocks(
                 output_file_glossary = gr.File(
                     label=_("Download automatically extracted glossary"), visible=False
                 )
-                # ADDED: Batch download button
                 output_file_zip = gr.File(label=_("Download All (ZIP)"), visible=False)
                 output_file_zip_mono = gr.File(
                     label=_("Download All Mono (ZIP)"), visible=False
@@ -2361,24 +2789,13 @@ with gr.Blocks(
                 output_file_zip_glossary = gr.File(
                     label=_("Download All Glossaries (ZIP)"), visible=False
                 )
-                translate_btn = gr.Button(_("Translate"), variant="primary")
-                cancel_btn = gr.Button(_("Cancel"), variant="secondary")
-                save_btn = gr.Button(_("Save Settings"), variant="secondary")
+                preview = PDF(label=_("Document Preview"), visible=True, height=1600)
 
+            with gr.Accordion(_("Technical Details"), open=False, elem_classes=["panel-card"]):
                 tech_details = gr.Markdown(
                     tech_details_string,
                     elem_classes=["secondary-text"],
                 )
-
-            with gr.Column(scale=2):
-                gr.Markdown(_("## Preview"))
-                # MOVED: Result file selector dropdown
-                result_file_selector = gr.Dropdown(
-                    label=_("Select File to Preview/Download"),
-                    visible=True,
-                    interactive=True,
-                )
-                preview = PDF(label=_("Document Preview"), visible=True, height=2000)
 
         # Event handlers
         def on_select_filetype(file_type):
@@ -2670,7 +3087,10 @@ with gr.Blocks(
             custom_qps_input,
             custom_pool_max_workers_input,
             # Advanced Options
-            prompt,
+            prompt_profile_input,
+            prompt_override_file_input,
+            model_param_profile_input,
+            model_param_override_file_input,
             min_text_length,
             rpc_doclayout,
             custom_system_prompt_input,
@@ -2773,13 +3193,24 @@ with gr.Blocks(
         save_btn.click(
             save_config,
             inputs=ui_setting_controls,
+            outputs=[config_status],
         )
 
-        def load_saved_config_to_ui(state):
-            """Reload all settings from config and update UI components."""
+        export_config_btn.click(
+            export_config,
+            inputs=ui_setting_controls,
+            outputs=[config_download_file, config_status],
+        )
+
+        def _settings_to_ui_updates(
+            fresh_settings: CLIEnvSettingsModel,
+            state,
+            status_message: str,
+            status_level: str = "info",
+        ):
+            """Convert settings into UI updates, following ui_setting_controls order."""
             try:
-                fresh_settings = settings
-                update_current_languages(settings.gui_settings.ui_lang)
+                update_current_languages(fresh_settings.gui_settings.ui_lang)
 
                 updates: list = []
 
@@ -2846,7 +3277,24 @@ with gr.Blocks(
                     )
                 )
                 # Advanced Options
-                updates.append(gr.update(value=""))  # prompt
+                updates.append(
+                    gr.update(value=fresh_settings.translation.prompt_profile)
+                )
+                updates.append(
+                    gr.update(
+                        value=fresh_settings.translation.prompt_override_file or ""
+                    )
+                )
+                updates.append(
+                    gr.update(value=fresh_settings.translation.model_param_profile)
+                )
+                updates.append(
+                    gr.update(
+                        value=(
+                            fresh_settings.translation.model_param_override_file or ""
+                        )
+                    )
+                )
                 updates.append(
                     gr.update(value=fresh_settings.translation.min_text_length)
                 )
@@ -2859,7 +3307,7 @@ with gr.Blocks(
                     )
                 )
                 updates.append(
-                    gr.update(visible=llm_support)
+                    gr.update(value=None, visible=llm_support)
                 )  # glossary_file visibility
                 updates.append(
                     gr.update(
@@ -3034,7 +3482,7 @@ with gr.Blocks(
                 siliconflow_free_ack_visible = selected_service == "SiliconFlowFree"
                 updates.append(gr.update(visible=siliconflow_free_ack_visible))
                 updates.append(
-                    gr.update(visible=llm_support)
+                    gr.update(value=None, visible=llm_support)
                 )  # glossary_table visibility
                 updates.append(
                     gr.update(
@@ -3042,13 +3490,62 @@ with gr.Blocks(
                     )
                 )  # term_disabled_info visibility
 
+                updates.append(
+                    _build_config_status_markup(
+                        status_message,
+                        level=status_level,
+                    )
+                )
                 return updates
             except Exception as e:
                 logger.warning(f"Could not reload config on page load: {e}")
-                return [None] * len(ui_setting_controls)
+                return [None] * len(ui_setting_controls) + [
+                    _build_config_status_markup(
+                        _("Failed to update the UI from the requested configuration."),
+                        level="warning",
+                    )
+                ]
+
+        def load_saved_config_to_ui(state):
+            """Reload all settings from config and update UI components."""
+            return _settings_to_ui_updates(
+                fresh_settings=settings,
+                state=state,
+                status_message=_("Loaded saved configuration from {path}.").format(
+                    path=DEFAULT_CONFIG_FILE
+                ),
+                status_level="info",
+            )
+
+        def import_config_to_ui(config_file, state):
+            imported_settings = _read_cli_settings_from_toml(config_file)
+            return _settings_to_ui_updates(
+                fresh_settings=imported_settings,
+                state=state,
+                status_message=_(
+                    "Imported TOML into the UI. Click Save Settings to persist it as the default profile."
+                ),
+                status_level="success",
+            )
+
+        config_import_file.upload(
+            import_config_to_ui,
+            inputs=[config_import_file, state],
+            outputs=ui_setting_controls + [config_status],
+        )
+
+        load_saved_btn.click(
+            load_saved_config_to_ui,
+            inputs=[state],
+            outputs=ui_setting_controls + [config_status],
+        )
 
         # Use ui_setting_controls as outputs for page load
-        demo.load(load_saved_config_to_ui, inputs=[state], outputs=ui_setting_controls)
+        demo.load(
+            load_saved_config_to_ui,
+            inputs=[state],
+            outputs=ui_setting_controls + [config_status],
+        )
 
 
 def parse_user_passwd(file_path: str, welcome_page: str) -> tuple[list, str]:

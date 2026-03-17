@@ -22,6 +22,8 @@ from babeldoc.main import create_progress_handler
 from rich.logging import RichHandler
 
 from pdf2zh_next.config.model import SettingsModel
+from pdf2zh_next.runtime.babeldoc_patch import apply_babeldoc_runtime_patch
+from pdf2zh_next.runtime.babeldoc_patch import attach_babeldoc_runtime_context
 from pdf2zh_next.translator import get_term_translator
 from pdf2zh_next.translator import get_translator
 from pdf2zh_next.utils import asynchronize
@@ -603,6 +605,13 @@ def create_babeldoc_config(settings: SettingsModel, file: Path) -> BabelDOCConfi
         term_extraction_translator=term_extraction_translator,
         term_pool_max_workers=settings.translation.term_pool_max_workers,
     )
+    attach_babeldoc_runtime_context(
+        translation_config=babeldoc_config,
+        prompt_bundle=translator.prompt_bundle,
+        model_param_bundle=translator.model_param_bundle,
+        model_name=getattr(translator, "model", None),
+    )
+    apply_babeldoc_runtime_patch()
     return babeldoc_config
 
 

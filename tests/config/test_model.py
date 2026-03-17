@@ -68,6 +68,10 @@ class TestTranslationSettings:
         assert settings.output is None
         assert settings.qps == 4
         assert settings.ignore_cache is False
+        assert settings.prompt_profile == "default"
+        assert settings.prompt_override_file is None
+        assert settings.model_param_profile == "default"
+        assert settings.model_param_override_file is None
 
     def test_custom_values(self, tmp_path):
         """Test setting custom values"""
@@ -78,6 +82,10 @@ class TestTranslationSettings:
             output=str(tmp_path),
             qps=10,
             ignore_cache=True,
+            prompt_profile="custom-prompt",
+            prompt_override_file="/workspace/prompts.yaml",
+            model_param_profile="custom-params",
+            model_param_override_file="/workspace/model-params.yaml",
         )
         assert settings.min_text_length == 10
         assert settings.lang_in == "fr"
@@ -85,6 +93,10 @@ class TestTranslationSettings:
         assert settings.output == str(tmp_path)
         assert settings.qps == 10
         assert settings.ignore_cache is True
+        assert settings.prompt_profile == "custom-prompt"
+        assert settings.prompt_override_file == "/workspace/prompts.yaml"
+        assert settings.model_param_profile == "custom-params"
+        assert settings.model_param_override_file == "/workspace/model-params.yaml"
 
 
 class TestPDFSettings:

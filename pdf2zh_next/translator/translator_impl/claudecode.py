@@ -26,7 +26,15 @@ class ClaudeCodeTranslator(BaseTranslator):
         super().__init__(settings, rate_limiter)
         self.claude_code_path = settings.translate_engine_settings.claude_code_path
         self.claude_code_model = settings.translate_engine_settings.claude_code_model
-        self.add_cache_impact_parameters("model", self.claude_code_model)
+        self.model = self.claude_code_model
+        runtime_params = self.get_runtime_model_params(
+            supported_keys={"max_turns", "timeout_seconds"},
+            model_name=self.claude_code_model,
+        )
+        self.max_turns = int(runtime_params.get("max_turns", 1))
+        self.timeout_seconds = int(runtime_params.get("timeout_seconds", 120))
+        self.add_cache_impact_parameters("model", self.model)
+        self.add_cache_impact_parameters("max_turns", self.max_turns)
         self.add_cache_impact_parameters("prompt", self.prompt(""))
         self._test_claude_code()
 
@@ -63,7 +71,7 @@ class ClaudeCodeTranslator(BaseTranslator):
             "--model",
             self.claude_code_model,
             "--max-turns",
-            "1",
+            str(self.max_turns),
             "--input-format",
             "stream-json",
             "--output-format",
@@ -87,7 +95,10 @@ class ClaudeCodeTranslator(BaseTranslator):
                 env=env,
             )
 
-            stdout, stderr = process.communicate(input=input_data, timeout=120)
+            stdout, stderr = process.communicate(
+                input=input_data,
+                timeout=self.timeout_seconds,
+            )
             logger.debug(f"CC: {stdout}")
 
             if process.returncode != 0:
