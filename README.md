@@ -13,6 +13,7 @@
 >
 > - Primary deployment target: Ubuntu/Debian-based Linux Docker containers.
 > - Future changes should prioritize Docker build reproducibility, runtime stability, and headless/container-friendly behavior.
+> - Default translation engine in this fork: `OpenAI`. Configure an OpenAI API key before first use if you rely on the default selection.
 > - Windows EXE and macOS-specific workflows are out of scope unless they affect shared code paths.
 > - When installation or runtime behavior changes, update Docker/build documentation first.
 

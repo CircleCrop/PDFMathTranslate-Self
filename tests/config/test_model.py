@@ -5,6 +5,9 @@ from pdf2zh_next.config.cli_env_model import CLIEnvSettingsModel
 from pdf2zh_next.config.model import BasicSettings
 from pdf2zh_next.config.model import PDFSettings
 from pdf2zh_next.config.model import TranslationSettings
+from pdf2zh_next.config.translate_engine_model import (
+    DEFAULT_TRANSLATION_ENGINE_METADATA,
+)
 from pdf2zh_next.config.translate_engine_model import CLISettings
 from pdf2zh_next.config.translate_engine_model import OpenAISettings
 
@@ -332,6 +335,10 @@ class TestCLIEnvSettingsModel:
         assert isinstance(settings.translation, TranslationSettings)
         assert isinstance(settings.pdf, PDFSettings)
         assert isinstance(settings.openai_detail, OpenAISettings)
+        assert (
+            settings.to_settings_model().translate_engine_settings.translate_engine_type
+            == DEFAULT_TRANSLATION_ENGINE_METADATA.translate_engine_type
+        )
 
     def test_get_output_dir(self, tmp_path: Path):
         """Test get_output_dir method"""
@@ -353,9 +360,10 @@ class TestCLIEnvSettingsModel:
 
     def test_validate_settings(self, tmp_path: Path):
         """Test settings validation"""
-        # Test missing translation service
+        # Test default translation service without API key
         settings = CLIEnvSettingsModel()
-        settings.validate_settings()
+        with pytest.raises(ValueError, match="OpenAI API key is required"):
+            settings.validate_settings()
 
         # Test missing OpenAI API key
         settings = CLIEnvSettingsModel(openai=True)

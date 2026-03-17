@@ -100,7 +100,7 @@ def to_settings_model(self) -> SettingsModel:
                 translate_engine_settings = metadata.setting_model_type()
             break
     else:
-        logger.warning("No translation engine selected, using SiliconFlow Free")
+        logger.warning("No translation engine selected, using OpenAI")
         translate_engine_settings = _DEFAULT_TRANSLATION_ENGINE()
 
     # Term extraction engine (optional)

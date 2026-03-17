@@ -1,11 +1,11 @@
 de:
-  '## File': '## Datei'
-  '## PDF Output Options': '## PDF-Ausgabeoptionen'
-  '## Preview': '## Vorschau'
-  '## Translated': '## Übersetzt'
-  '## Translation Options': '## Übersetzungsoptionen'
-  '### PDF Options': '### PDF-Optionen'
-  '#### BabelDOC Advanced Options': '#### BabelDOC Erweiterte Optionen'
+  "## File": "## Datei"
+  "## PDF Output Options": "## PDF-Ausgabeoptionen"
+  "## Preview": "## Vorschau"
+  "## Translated": "## Übersetzt"
+  "## Translation Options": "## Übersetzungsoptionen"
+  "### PDF Options": "### PDF-Optionen"
+  "#### BabelDOC Advanced Options": "#### BabelDOC Erweiterte Optionen"
   Advanced Options: Erweiterte Optionen
   All: Alle
   Auto Term Extraction: Automatische Begriffsermittlung
@@ -15,7 +15,7 @@ de:
   Character pattern to identify formula text (regex, not recommended to change): Zeichenmuster zur Erkennung von Formeltext (Regex, Änderung nicht empfohlen)
   Concurrent Requests: Parallele Anfragen
   Concurrent Threads: Parallele Threads
-  'Configuration saved to: {path}': 'Konfiguration gespeichert unter: {path}'
+  "Configuration saved to: {path}": "Konfiguration gespeichert unter: {path}"
   Custom: Benutzerdefiniert
   Custom System Prompt: Benutzerdefinierte Systemaufforderung
   Custom prompt for the translator: Benutzerdefinierte Eingabeaufforderung für den Übersetzer
@@ -48,7 +48,7 @@ de:
   Maximum pages per part (for auto-split translation, 0 means no limit): Maximale Seiten pro Teil (für automatische Teilübersetzung, 0 bedeutet unbegrenzt)
   Merge alternating line numbers: Zeilennummern abwechselnd zusammenführen
   Minimum text length to translate: Mindesttextlänge für Übersetzung
-  'Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM': 'Die meisten API-Anbieter stellen diesen Parameter zur Verfügung, z. B. OpenAI GPT-4: 500 RPM.'
+  "Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM": "Die meisten API-Anbieter stellen diesen Parameter zur Verfügung, z. B. OpenAI GPT-4: 500 RPM."
   No Watermark: Kein Wasserzeichen
   Non-formula line IoU threshold: IoU-Schwellenwert für Nicht-Formel-Zeilen
   Number of requests sent per second: Anzahl der Anfragen pro Sekunde
@@ -69,8 +69,7 @@ de:
   Remove non-formula lines within paragraph areas: Nicht-Formelzeilen in Absatzbereichen entfernen
   Save Settings: Einstellungen speichern
   Saving configuration...: Konfiguration wird gespeichert...
-  ? Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button
-  : Wählen Sie den Ratenlimit-Modus aus, der am besten zu Ihrem API-Anbieter passt. Das System konvertiert automatisch die Ratenlimit-Werte für RPM oder gleichzeitige Anfragen in QPS und Pool-Max-Worker, wenn Sie auf die Schaltfläche "Übersetzen" klicken.
+  Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button: Wählen Sie den Ratenlimit-Modus aus, der am besten zu Ihrem API-Anbieter passt. Das System konvertiert automatisch die Ratenlimit-Werte für RPM oder gleichzeitige Anfragen in QPS und Pool-Max-Worker, wenn Sie auf die Schaltfläche "Übersetzen" klicken.
   Service: Dienst
   Skip clean (maybe improve compatibility): Bereinigung überspringen (könnte Kompatibilität verbessern)
   Skip formula offset calculation: Formelversatzberechnung überspringen
@@ -99,13 +98,13 @@ de:
   e.g., 1,3,5-10: z. B. 1,3,5-10
   save automatically extracted glossary: Automatisch extrahiertes Glossar speichern
 en:
-  '## File': '## File'
-  '## PDF Output Options': '## PDF Output Options'
-  '## Preview': '## Preview'
-  '## Translated': '## Translated'
-  '## Translation Options': '## Translation Options'
-  '### PDF Options': '### PDF Options'
-  '#### BabelDOC Advanced Options': '#### BabelDOC Advanced Options'
+  "## File": "## File"
+  "## PDF Output Options": "## PDF Output Options"
+  "## Preview": "## Preview"
+  "## Translated": "## Translated"
+  "## Translation Options": "## Translation Options"
+  "### PDF Options": "### PDF Options"
+  "#### BabelDOC Advanced Options": "#### BabelDOC Advanced Options"
   Advanced Options: Advanced Options
   All: All
   Auto Term Extraction: Auto Term Extraction
@@ -115,7 +114,7 @@ en:
   Character pattern to identify formula text (regex, not recommended to change): Character pattern to identify formula text (regex, not recommended to change)
   Concurrent Requests: Concurrent Requests
   Concurrent Threads: Concurrent Threads
-  'Configuration saved to: {path}': 'Configuration saved to: {path}'
+  "Configuration saved to: {path}": "Configuration saved to: {path}"
   Custom: Custom
   Custom System Prompt: Custom System Prompt
   Custom prompt for the translator: Custom prompt for the translator
@@ -148,7 +147,7 @@ en:
   Maximum pages per part (for auto-split translation, 0 means no limit): Maximum pages per part (for auto-split translation, 0 means no limit)
   Merge alternating line numbers: Merge alternating line numbers
   Minimum text length to translate: Minimum text length to translate
-  'Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM': 'Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM'
+  "Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM": "Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM"
   No Watermark: No Watermark
   Non-formula line IoU threshold: Non-formula line IoU threshold
   Number of requests sent per second: Number of requests sent per second
@@ -169,8 +168,7 @@ en:
   Remove non-formula lines within paragraph areas: Remove non-formula lines within paragraph areas
   Save Settings: Save Settings
   Saving configuration...: Saving configuration...
-  ? Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button
-  : Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button
+  Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button: Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button
   Service: Service
   Skip clean (maybe improve compatibility): Skip clean (maybe improve compatibility)
   Skip formula offset calculation: Skip formula offset calculation
@@ -199,13 +197,13 @@ en:
   e.g., 1,3,5-10: e.g., 1,3,5-10
   save automatically extracted glossary: save automatically extracted glossary
 es:
-  '## File': '## Archivo'
-  '## PDF Output Options': '## Opciones de salida de PDF'
-  '## Preview': '## Vista previa'
-  '## Translated': '## Traducido'
-  '## Translation Options': '## Opciones de traducción'
-  '### PDF Options': '### Opciones de PDF'
-  '#### BabelDOC Advanced Options': '#### Opciones Avanzadas de BabelDOC'
+  "## File": "## Archivo"
+  "## PDF Output Options": "## Opciones de salida de PDF"
+  "## Preview": "## Vista previa"
+  "## Translated": "## Traducido"
+  "## Translation Options": "## Opciones de traducción"
+  "### PDF Options": "### Opciones de PDF"
+  "#### BabelDOC Advanced Options": "#### Opciones Avanzadas de BabelDOC"
   Advanced Options: Opciones Avanzadas
   All: Todo
   Auto Term Extraction: Extracción Automática de Términos
@@ -215,7 +213,7 @@ es:
   Character pattern to identify formula text (regex, not recommended to change): Patrón de caracteres para identificar texto de fórmulas (regex, no se recomienda cambiar)
   Concurrent Requests: Solicitudes simultáneas
   Concurrent Threads: Hilos concurrentes
-  'Configuration saved to: {path}': 'Configuración guardada en: {path}'
+  "Configuration saved to: {path}": "Configuración guardada en: {path}"
   Custom: Personalizado
   Custom System Prompt: Prompt personalizado del sistema
   Custom prompt for the translator: Prompt personalizado para el traductor
@@ -248,7 +246,7 @@ es:
   Maximum pages per part (for auto-split translation, 0 means no limit): Máximo de páginas por parte (para traducción automática dividida, 0 significa sin límite)
   Merge alternating line numbers: Combinar números de línea alternos
   Minimum text length to translate: Longitud mínima del texto para traducir
-  'Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM': 'La mayoría de los proveedores de API ofrecen este parámetro, como OpenAI GPT-4: 500 RPM'
+  "Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM": "La mayoría de los proveedores de API ofrecen este parámetro, como OpenAI GPT-4: 500 RPM"
   No Watermark: Sin marca de agua
   Non-formula line IoU threshold: Umbral IoU de líneas sin fórmula
   Number of requests sent per second: Número de solicitudes enviadas por segundo
@@ -269,8 +267,7 @@ es:
   Remove non-formula lines within paragraph areas: Eliminar líneas que no son fórmulas dentro de las áreas de párrafo
   Save Settings: Guardar configuración
   Saving configuration...: Guardando configuración...
-  ? Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button
-  : Selecciona el modo de límite de velocidad que mejor se adapte a tu proveedor de API. El sistema convertirá automáticamente los valores de limitación de RPM o Solicitudes Simultáneas a QPS y Máximo de Trabajadores del Grupo cuando hagas clic en el botón Traducir.
+  Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button: Selecciona el modo de límite de velocidad que mejor se adapte a tu proveedor de API. El sistema convertirá automáticamente los valores de limitación de RPM o Solicitudes Simultáneas a QPS y Máximo de Trabajadores del Grupo cuando hagas clic en el botón Traducir.
   Service: Servicio
   Skip clean (maybe improve compatibility): Omitir limpieza (quizás mejore la compatibilidad)
   Skip formula offset calculation: Omitir cálculo de desplazamiento de fórmulas
@@ -299,13 +296,13 @@ es:
   e.g., 1,3,5-10: p. ej., 1,3,5-10
   save automatically extracted glossary: guardar glosario extraído automáticamente
 fr:
-  '## File': '## Fichier'
-  '## PDF Output Options': '## Options de sortie PDF'
-  '## Preview': '## Aperçu'
-  '## Translated': '## Traduit'
-  '## Translation Options': '## Options de traduction'
-  '### PDF Options': '### Options PDF'
-  '#### BabelDOC Advanced Options': '#### Options avancées de BabelDOC'
+  "## File": "## Fichier"
+  "## PDF Output Options": "## Options de sortie PDF"
+  "## Preview": "## Aperçu"
+  "## Translated": "## Traduit"
+  "## Translation Options": "## Options de traduction"
+  "### PDF Options": "### Options PDF"
+  "#### BabelDOC Advanced Options": "#### Options avancées de BabelDOC"
   Advanced Options: Options avancées
   All: Tout
   Auto Term Extraction: Extraction automatique de termes
@@ -315,7 +312,7 @@ fr:
   Character pattern to identify formula text (regex, not recommended to change): Modèle de caractères pour identifier le texte de formule (regex, déconseillé de modifier)
   Concurrent Requests: Requêtes simultanées
   Concurrent Threads: Threads simultanés
-  'Configuration saved to: {path}': 'Configuration enregistrée dans : {path}'
+  "Configuration saved to: {path}": "Configuration enregistrée dans : {path}"
   Custom: Personnalisé
   Custom System Prompt: Invite système personnalisée
   Custom prompt for the translator: Invite personnalisée pour le traducteur
@@ -348,7 +345,7 @@ fr:
   Maximum pages per part (for auto-split translation, 0 means no limit): Nombre maximum de pages par partie (pour la traduction automatique, 0 signifie sans limite)
   Merge alternating line numbers: Fusionner les numéros de ligne alternés
   Minimum text length to translate: Longueur minimale du texte à traduire
-  'Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM': 'La plupart des fournisseurs d''API fournissent ce paramètre, comme OpenAI GPT-4 : 500 RPM'
+  "Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM": "La plupart des fournisseurs d'API fournissent ce paramètre, comme OpenAI GPT-4 : 500 RPM"
   No Watermark: Sans filigrane
   Non-formula line IoU threshold: Seuil d'IoU pour les lignes non formulées
   Number of requests sent per second: Nombre de requêtes envoyées par seconde
@@ -369,8 +366,7 @@ fr:
   Remove non-formula lines within paragraph areas: Supprimer les lignes non formules dans les zones de paragraphe
   Save Settings: Enregistrer les paramètres
   Saving configuration...: Sauvegarde de la configuration en cours...
-  ? Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button
-  : Sélectionnez le mode de limitation de débit qui convient le mieux à votre fournisseur d'API. Le système convertira automatiquement les valeurs de limitation de RPM ou de requêtes simultanées en QPS et en nombre maximum de workers du pool lorsque vous cliquerez sur le bouton Traduire.
+  Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button: Sélectionnez le mode de limitation de débit qui convient le mieux à votre fournisseur d'API. Le système convertira automatiquement les valeurs de limitation de RPM ou de requêtes simultanées en QPS et en nombre maximum de workers du pool lorsque vous cliquerez sur le bouton Traduire.
   Service: Service
   Skip clean (maybe improve compatibility): Ignorer le nettoyage (peut-être améliorer la compatibilité)
   Skip formula offset calculation: Ignorer le calcul du décalage de formule
@@ -399,13 +395,13 @@ fr:
   e.g., 1,3,5-10: p. ex. 1,3,5-10
   save automatically extracted glossary: sauvegarder le glossaire extrait automatiquement
 it:
-  '## File': '## File'
-  '## PDF Output Options': '## Opzioni di Output PDF'
-  '## Preview': '## Anteprima'
-  '## Translated': '## Tradotto'
-  '## Translation Options': '## Opzioni di Traduzione'
-  '### PDF Options': '### Opzioni PDF'
-  '#### BabelDOC Advanced Options': '#### Opzioni Avanzate di BabelDOC'
+  "## File": "## File"
+  "## PDF Output Options": "## Opzioni di Output PDF"
+  "## Preview": "## Anteprima"
+  "## Translated": "## Tradotto"
+  "## Translation Options": "## Opzioni di Traduzione"
+  "### PDF Options": "### Opzioni PDF"
+  "#### BabelDOC Advanced Options": "#### Opzioni Avanzate di BabelDOC"
   Advanced Options: Opzioni Avanzate
   All: Tutto
   Auto Term Extraction: Estrazione Automatica dei Termini
@@ -415,7 +411,7 @@ it:
   Character pattern to identify formula text (regex, not recommended to change): Schema di caratteri per identificare il testo della formula (regex, non è consigliato modificarlo)
   Concurrent Requests: Richieste Concorrenti
   Concurrent Threads: Thread concorrenti
-  'Configuration saved to: {path}': 'Configurazione salvata in: {path}'
+  "Configuration saved to: {path}": "Configurazione salvata in: {path}"
   Custom: Personalizzato
   Custom System Prompt: Prompt di sistema personalizzato
   Custom prompt for the translator: Prompt personalizzato per il traduttore
@@ -448,7 +444,7 @@ it:
   Maximum pages per part (for auto-split translation, 0 means no limit): Numero massimo di pagine per parte (per la traduzione con suddivisione automatica, 0 significa nessun limite)
   Merge alternating line numbers: Unisci numeri di riga alternati
   Minimum text length to translate: Lunghezza minima del testo da tradurre
-  'Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM': 'La maggior parte dei fornitori di API fornisce questo parametro, come OpenAI GPT-4: 500 RPM'
+  "Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM": "La maggior parte dei fornitori di API fornisce questo parametro, come OpenAI GPT-4: 500 RPM"
   No Watermark: Nessuna filigrana
   Non-formula line IoU threshold: Soglia IoU per linee non formule
   Number of requests sent per second: Numero di richieste inviate al secondo
@@ -469,8 +465,7 @@ it:
   Remove non-formula lines within paragraph areas: Rimuovi righe non di formula all'interno delle aree di paragrafo
   Save Settings: Salva impostazioni
   Saving configuration...: Salvando configurazione...
-  ? Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button
-  : Seleziona la modalità di limitazione della frequenza più adatta al tuo provider API. Il sistema convertirà automaticamente i valori di limitazione RPM o Richieste Concorrenti in QPS e Pool Max Workers quando clicchi sul pulsante Traduci.
+  Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button: Seleziona la modalità di limitazione della frequenza più adatta al tuo provider API. Il sistema convertirà automaticamente i valori di limitazione RPM o Richieste Concorrenti in QPS e Pool Max Workers quando clicchi sul pulsante Traduci.
   Service: Servizio
   Skip clean (maybe improve compatibility): Salta pulizia (potrebbe migliorare la compatibilità)
   Skip formula offset calculation: Salta calcolo scostamento formula
@@ -499,18 +494,18 @@ it:
   e.g., 1,3,5-10: ad es., 1,3,5-10
   save automatically extracted glossary: salva glossario estratto automaticamente
 ja:
-  '## File': '## ファイル'
-  '## PDF Output Options': '## PDF 出力オプション'
-  '## Preview': '## プレビュー'
-  '## Translated': '## 翻訳済み'
-  '## Translation Options': '## 翻訳オプション
+  "## File": "## ファイル"
+  "## PDF Output Options": "## PDF 出力オプション"
+  "## Preview": "## プレビュー"
+  "## Translated": "## 翻訳済み"
+  "## Translation Options": "## 翻訳オプション
 
 
     特定の用語については以下の翻訳を厳守してください：
 
-    - 「Immersive Translate」は「没入型翻訳」と翻訳すること'
-  '### PDF Options': '### PDF オプション'
-  '#### BabelDOC Advanced Options': '#### BabelDOC 詳細設定'
+    - 「Immersive Translate」は「没入型翻訳」と翻訳すること"
+  "### PDF Options": "### PDF オプション"
+  "#### BabelDOC Advanced Options": "#### BabelDOC 詳細設定"
   Advanced Options: 詳細設定
   All: すべて
   Auto Term Extraction: 自動用語抽出
@@ -520,7 +515,7 @@ ja:
   Character pattern to identify formula text (regex, not recommended to change): 数式テキストを識別する文字パターン（正規表現、変更非推奨）
   Concurrent Requests: 同時リクエスト数
   Concurrent Threads: 同時スレッド
-  'Configuration saved to: {path}': 設定を保存しました：{path}
+  "Configuration saved to: {path}": 設定を保存しました：{path}
   Custom: カスタム
   Custom System Prompt: カスタムシステムプロンプト
   Custom prompt for the translator: 翻訳者向けのカスタムプロンプト
@@ -542,7 +537,7 @@ ja:
   Follow main translation engine: メイン翻訳エンジンに従う
   Font pattern to identify formula text (regex, not recommended to change): 数式テキストを識別するためのフォントパターン（正規表現、変更は非推奨）
   Force split short lines into different paragraphs: 短い行を強制的に別の段落に分割する
-  Free translation service provided by [SiliconFlow](https://siliconflow.cn): '[SiliconFlow](https://siliconflow.cn) 提供の無料翻訳サービス'
+  Free translation service provided by [SiliconFlow](https://siliconflow.cn): "[SiliconFlow](https://siliconflow.cn) 提供の無料翻訳サービス"
   Glossary File: 用語集ファイル
   Handle alternating line numbers and text paragraphs in documents with line numbers: 行番号付き文書内の行番号とテキスト段落の交互処理
   If not set or set to 0, QPS will be used as the number of workers: 設定されていない場合、または 0 に設定されている場合、QPS がワーカー数として使用されます。
@@ -553,7 +548,7 @@ ja:
   Maximum pages per part (for auto-split translation, 0 means no limit): 一部あたりの最大ページ数（自動分割翻訳用、0 は無制限を意味します）
   Merge alternating line numbers: 交互行番号を統合
   Minimum text length to translate: 翻訳する最小テキスト長
-  'Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM': '多くの API プロバイダーがこのパラメータを提供しています。例：OpenAI GPT-4: 500 RPM'
+  "Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM": "多くの API プロバイダーがこのパラメータを提供しています。例：OpenAI GPT-4: 500 RPM"
   No Watermark: 透かしなし
   Non-formula line IoU threshold: 非数式行 IoU 閾値
   Number of requests sent per second: 1 秒あたりのリクエスト送信数
@@ -574,8 +569,7 @@ ja:
   Remove non-formula lines within paragraph areas: 段落領域内の数式以外の行を削除
   Save Settings: 設定を保存
   Saving configuration...: 設定を保存中...
-  ? Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button
-  : ご利用の API プロバイダーに最適なレート制限モードを選択してください。[没入型翻訳] ボタンをクリックすると、システムが RPM または同時リクエスト数のレート制限値を QPS および Pool Max Workers に自動変換します
+  Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button: ご利用の API プロバイダーに最適なレート制限モードを選択してください。[没入型翻訳] ボタンをクリックすると、システムが RPM または同時リクエスト数のレート制限値を QPS および Pool Max Workers に自動変換します
   Service: サービス
   Skip clean (maybe improve compatibility): クリーンアップをスキップ（互換性が向上する可能性あり）
   Skip formula offset calculation: 数式オフセット計算をスキップ
@@ -604,13 +598,13 @@ ja:
   e.g., 1,3,5-10: 例：1,3,5-10
   save automatically extracted glossary: 自動抽出された用語集を保存
 ko:
-  '## File': '## 파일'
-  '## PDF Output Options': '## PDF 출력 옵션'
-  '## Preview': '## 미리보기'
-  '## Translated': '## 번역됨'
-  '## Translation Options': '## 번역 옵션'
-  '### PDF Options': '### PDF 옵션'
-  '#### BabelDOC Advanced Options': '#### BabelDOC 고급 옵션'
+  "## File": "## 파일"
+  "## PDF Output Options": "## PDF 출력 옵션"
+  "## Preview": "## 미리보기"
+  "## Translated": "## 번역됨"
+  "## Translation Options": "## 번역 옵션"
+  "### PDF Options": "### PDF 옵션"
+  "#### BabelDOC Advanced Options": "#### BabelDOC 고급 옵션"
   Advanced Options: 고급 옵션
   All: 모두
   Auto Term Extraction: 자동 용어 추출
@@ -620,7 +614,7 @@ ko:
   Character pattern to identify formula text (regex, not recommended to change): 수식 텍스트를 식별하는 문자 패턴 (정규식, 변경 비권장)
   Concurrent Requests: 동시 요청
   Concurrent Threads: 동시 스레드
-  'Configuration saved to: {path}': '구성이 다음 위치에 저장됨: {path}'
+  "Configuration saved to: {path}": "구성이 다음 위치에 저장됨: {path}"
   Custom: 사용자 지정
   Custom System Prompt: 사용자 지정 시스템 프롬프트
   Custom prompt for the translator: 번역기를 위한 사용자 지정 프롬프트
@@ -642,7 +636,7 @@ ko:
   Follow main translation engine: 주 번역 엔진 적용
   Font pattern to identify formula text (regex, not recommended to change): 수식 텍스트를 식별할 글꼴 패턴 (정규식, 변경 비권장)
   Force split short lines into different paragraphs: 짧은 줄을 강제로 다른 문단으로 분할
-  Free translation service provided by [SiliconFlow](https://siliconflow.cn): '[SiliconFlow](https://siliconflow.cn) 에서 제공하는 무료 번역 서비스'
+  Free translation service provided by [SiliconFlow](https://siliconflow.cn): "[SiliconFlow](https://siliconflow.cn) 에서 제공하는 무료 번역 서비스"
   Glossary File: 용어집 파일
   Handle alternating line numbers and text paragraphs in documents with line numbers: 행 번호가 있는 문서에서 교대로 나타나는 행 번호와 텍스트 단락 처리
   If not set or set to 0, QPS will be used as the number of workers: 설정되지 않았거나 0 으로 설정된 경우 QPS 가 작업자 수로 사용됩니다.
@@ -653,13 +647,13 @@ ko:
   Maximum pages per part (for auto-split translation, 0 means no limit): 파트 당 최대 페이지 수 (자동 분할 번역용, 0 은 제한 없음)
   Merge alternating line numbers: 교대로 줄 번호 병합
   Minimum text length to translate: 번역할 최소 텍스트 길이
-  'Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM': 대부분의 API 제공업체는 이 매개변수를 제공합니다. 예를 들어 OpenAI GPT-4 의 경우 500 RPM 입니다.
+  "Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM": 대부분의 API 제공업체는 이 매개변수를 제공합니다. 예를 들어 OpenAI GPT-4 의 경우 500 RPM 입니다.
   No Watermark: 워터마크 없음
   Non-formula line IoU threshold: 비수식 선 IoU 임계값
   Number of requests sent per second: 초당 전송된 요청 수
   OCR workaround (experimental, will auto enable Skip scanned detection in backend): OCR 해결책 (실험적 기능, 백엔드에서 스캔 문서 감지 건너뛰기를 자동으로 활성화함)
   Only include translated pages in the output PDF.: 출력 PDF 에 번역된 페이지만 포함하세요.
-  Page range (e.g., 1,3,5-10,-5): '페이지 범위 (예: 1,3,5-10,-5)'
+  Page range (e.g., 1,3,5-10,-5): "페이지 범위 (예: 1,3,5-10,-5)"
   Pages: 페이지
   Pool Max Workers: Pool 최대 작업자 수
   Primary font family for translated text: 번역 텍스트의 기본 글꼴 패밀리
@@ -674,8 +668,7 @@ ko:
   Remove non-formula lines within paragraph areas: 단락 영역 내 수식이 아닌 줄 제거
   Save Settings: 설정 저장
   Saving configuration...: 구성 저장 중...
-  ? Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button
-  : API 공급자에 가장 적합한 속도 제한 모드를 선택하세요. 번역 버튼을 클릭하면 시스템이 RPM 또는 동시 요청에 대한 속도 제한 값을 QPS 및 Pool Max Workers 로 자동 변환합니다.
+  Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button: API 공급자에 가장 적합한 속도 제한 모드를 선택하세요. 번역 버튼을 클릭하면 시스템이 RPM 또는 동시 요청에 대한 속도 제한 값을 QPS 및 Pool Max Workers 로 자동 변환합니다.
   Service: 서비스
   Skip clean (maybe improve compatibility): 건너뛰기 (호환성 향상 가능)
   Skip formula offset calculation: 수식 오프셋 계산 건너뛰기
@@ -700,17 +693,17 @@ ko:
   Use alternating pages for dual PDF: PDF 양면 인쇄에 번갈아 사용할 페이지
   Watermark mode: 워터마크 모드
   Watermarked: 워터마크됨
-  e.g. /no_think You are a professional zh-CN native translator who needs to fluently translate text into zh-CN.: '예: /no_think 당신은 전문적인 한국어 원어민 번역가로서 텍스트를 한국어로 유창하게 번역해야 합니다.'
-  e.g., 1,3,5-10: '예: 1,3,5-10'
+  e.g. /no_think You are a professional zh-CN native translator who needs to fluently translate text into zh-CN.: "예: /no_think 당신은 전문적인 한국어 원어민 번역가로서 텍스트를 한국어로 유창하게 번역해야 합니다."
+  e.g., 1,3,5-10: "예: 1,3,5-10"
   save automatically extracted glossary: 자동 추출 용어집 저장
 pt:
-  '## File': '## Arquivo'
-  '## PDF Output Options': '## Opções de Saída em PDF'
-  '## Preview': '## Pré-visualização'
-  '## Translated': '## Traduzido'
-  '## Translation Options': '## Opções de Tradução'
-  '### PDF Options': '### Opções de PDF'
-  '#### BabelDOC Advanced Options': '#### Opções Avançadas do BabelDOC'
+  "## File": "## Arquivo"
+  "## PDF Output Options": "## Opções de Saída em PDF"
+  "## Preview": "## Pré-visualização"
+  "## Translated": "## Traduzido"
+  "## Translation Options": "## Opções de Tradução"
+  "### PDF Options": "### Opções de PDF"
+  "#### BabelDOC Advanced Options": "#### Opções Avançadas do BabelDOC"
   Advanced Options: Opções Avançadas
   All: Tudo
   Auto Term Extraction: Extração Automática de Termos
@@ -720,7 +713,7 @@ pt:
   Character pattern to identify formula text (regex, not recommended to change): Padrão de caracteres para identificar texto de fórmula (regex, não recomendado alterar)
   Concurrent Requests: Pedidos Simultâneos
   Concurrent Threads: Threads Simultâneos
-  'Configuration saved to: {path}': 'Configuração salva em: {path}'
+  "Configuration saved to: {path}": "Configuração salva em: {path}"
   Custom: Personalizado
   Custom System Prompt: Prompt Personalizado do Sistema
   Custom prompt for the translator: Promoção personalizada para o tradutor
@@ -753,13 +746,13 @@ pt:
   Maximum pages per part (for auto-split translation, 0 means no limit): Máximo de páginas por parte (para tradução automática dividida, 0 significa sem limite)
   Merge alternating line numbers: Mesclar números de linha alternados
   Minimum text length to translate: Comprimento mínimo do texto para traduzir
-  'Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM': 'A maioria dos provedores de API fornece este parâmetro, como OpenAI GPT-4: 500 RPM'
+  "Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM": "A maioria dos provedores de API fornece este parâmetro, como OpenAI GPT-4: 500 RPM"
   No Watermark: Sem Marca d'Água
   Non-formula line IoU threshold: Limiar de IoU para linha não-formulada
   Number of requests sent per second: Número de solicitações enviadas por segundo
   OCR workaround (experimental, will auto enable Skip scanned detection in backend): Solução alternativa para OCR (experimental, ativará automaticamente a detecção ignorada de digitalizados no backend)
   Only include translated pages in the output PDF.: Inclua apenas as páginas traduzidas no PDF de saída.
-  Page range (e.g., 1,3,5-10,-5): 'Intervalo de páginas (ex.: 1,3,5-10,-5)'
+  Page range (e.g., 1,3,5-10,-5): "Intervalo de páginas (ex.: 1,3,5-10,-5)"
   Pages: Páginas
   Pool Max Workers: Máximo de Trabalhadores do Pool
   Primary font family for translated text: Família de fontes principal para texto traduzido
@@ -774,8 +767,7 @@ pt:
   Remove non-formula lines within paragraph areas: Remover linhas que não são fórmulas dentro de áreas de parágrafo
   Save Settings: Salvar Configurações
   Saving configuration...: Salvando configuração...
-  ? Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button
-  : Selecione o modo de limite de taxa que melhor se adequa ao seu provedor de API. O sistema converterá automaticamente os valores de limite de taxa de RPM ou Solicitações Simultâneas para QPS e Pool Max Workers quando você clicar no botão Traduzir.
+  Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button: Selecione o modo de limite de taxa que melhor se adequa ao seu provedor de API. O sistema converterá automaticamente os valores de limite de taxa de RPM ou Solicitações Simultâneas para QPS e Pool Max Workers quando você clicar no botão Traduzir.
   Service: Serviço
   Skip clean (maybe improve compatibility): Ignorar limpeza (pode melhorar a compatibilidade)
   Skip formula offset calculation: Ignorar cálculo de deslocamento da fórmula
@@ -800,17 +792,17 @@ pt:
   Use alternating pages for dual PDF: Usar páginas alternadas para PDF duplo
   Watermark mode: Modo marca d'água
   Watermarked: Marca d'água
-  e.g. /no_think You are a professional zh-CN native translator who needs to fluently translate text into zh-CN.: 'por exemplo: /no_think Você é um tradutor nativo de zh-CN profissional que precisa traduzir textos fluentemente para zh-CN.'
+  e.g. /no_think You are a professional zh-CN native translator who needs to fluently translate text into zh-CN.: "por exemplo: /no_think Você é um tradutor nativo de zh-CN profissional que precisa traduzir textos fluentemente para zh-CN."
   e.g., 1,3,5-10: ex., 1,3,5-10
   save automatically extracted glossary: salvar glossário extraído automaticamente
 ru:
-  '## File': '## Файл'
-  '## PDF Output Options': '## Параметры вывода в PDF'
-  '## Preview': '## Предпросмотр'
-  '## Translated': '## Переведено'
-  '## Translation Options': '## Параметры перевода'
-  '### PDF Options': '### Параметры PDF'
-  '#### BabelDOC Advanced Options': '#### Расширенные настройки BabelDOC'
+  "## File": "## Файл"
+  "## PDF Output Options": "## Параметры вывода в PDF"
+  "## Preview": "## Предпросмотр"
+  "## Translated": "## Переведено"
+  "## Translation Options": "## Параметры перевода"
+  "### PDF Options": "### Параметры PDF"
+  "#### BabelDOC Advanced Options": "#### Расширенные настройки BabelDOC"
   Advanced Options: Расширенные настройки
   All: Все
   Auto Term Extraction: Автоматическое извлечение терминов
@@ -820,7 +812,7 @@ ru:
   Character pattern to identify formula text (regex, not recommended to change): Символьный шаблон для определения формульного текста (regex, не рекомендуется изменять)
   Concurrent Requests: Параллельные запросы
   Concurrent Threads: Параллельные потоки
-  'Configuration saved to: {path}': 'Конфигурация сохранена в: {path}'
+  "Configuration saved to: {path}": "Конфигурация сохранена в: {path}"
   Custom: Пользовательский
   Custom System Prompt: Пользовательский системный промпт
   Custom prompt for the translator: Пользовательский промпт для переводчика
@@ -853,7 +845,7 @@ ru:
   Maximum pages per part (for auto-split translation, 0 means no limit): Максимум страниц на часть (для автоматического разделения перевода, 0 — без ограничения)
   Merge alternating line numbers: Объединить чередующиеся номера строк
   Minimum text length to translate: Минимальная длина текста для перевода
-  'Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM': 'Большинство поставщиков API предоставляют этот параметр, например, OpenAI GPT-4: 500 RPM'
+  "Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM": "Большинство поставщиков API предоставляют этот параметр, например, OpenAI GPT-4: 500 RPM"
   No Watermark: Без водяного знака
   Non-formula line IoU threshold: Порог IoU для линий без формулы
   Number of requests sent per second: Количество запросов в секунду
@@ -874,8 +866,7 @@ ru:
   Remove non-formula lines within paragraph areas: Удалить строки без формул в областях абзацев
   Save Settings: Сохранить настройки
   Saving configuration...: Сохранение конфигурации...
-  ? Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button
-  : Выберите режим ограничения частоты запросов, который лучше всего подходит для вашего API-провайдера. Система автоматически преобразует значения ограничений RPM или одновременных запросов в QPS и максимальное количество воркеров пула при нажатии кнопки «Перевести».
+  Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button: Выберите режим ограничения частоты запросов, который лучше всего подходит для вашего API-провайдера. Система автоматически преобразует значения ограничений RPM или одновременных запросов в QPS и максимальное количество воркеров пула при нажатии кнопки «Перевести».
   Service: Сервис
   Skip clean (maybe improve compatibility): Пропустить очистку (может улучшить совместимость)
   Skip formula offset calculation: Пропустить расчет смещения формулы
@@ -900,17 +891,17 @@ ru:
   Use alternating pages for dual PDF: Использовать чередующиеся страницы для двойного PDF
   Watermark mode: Режим водяного знака
   Watermarked: С водяным знаком
-  e.g. /no_think You are a professional zh-CN native translator who needs to fluently translate text into zh-CN.: 'например: /без_мысли Вы профессиональный носитель русского языка, который должен бегло переводить тексты на русский.'
+  e.g. /no_think You are a professional zh-CN native translator who needs to fluently translate text into zh-CN.: "например: /без_мысли Вы профессиональный носитель русского языка, который должен бегло переводить тексты на русский."
   e.g., 1,3,5-10: напр., 1,3,5-10
   save automatically extracted glossary: сохранить автоматически извлечённый глоссарий
 zh:
-  '## File': '## 文件'
-  '## PDF Output Options': '## PDF 输出选项'
-  '## Preview': '## 预览'
-  '## Translated': '## 已翻译'
-  '## Translation Options': '## 翻译选项'
-  '### PDF Options': '### PDF 选项'
-  '#### BabelDOC Advanced Options': '#### BabelDOC 高级选项'
+  "## File": "## 文件"
+  "## PDF Output Options": "## PDF 输出选项"
+  "## Preview": "## 预览"
+  "## Translated": "## 已翻译"
+  "## Translation Options": "## 翻译选项"
+  "### PDF Options": "### PDF 选项"
+  "#### BabelDOC Advanced Options": "#### BabelDOC 高级选项"
   Advanced Options: 高级选项
   All: 全部
   Auto Term Extraction: 自动术语提取
@@ -920,7 +911,7 @@ zh:
   Character pattern to identify formula text (regex, not recommended to change): 用于识别公式文本的字符模式（正则表达式，不建议更改）
   Concurrent Requests: 并发请求
   Concurrent Threads: 并发线程
-  'Configuration saved to: {path}': 配置已保存至：{path}
+  "Configuration saved to: {path}": 配置已保存至：{path}
   Custom: 自定义
   Custom System Prompt: 自定义系统提示
   Custom prompt for the translator: 翻译器的自定义提示
@@ -953,7 +944,7 @@ zh:
   Maximum pages per part (for auto-split translation, 0 means no limit): 每部分最大页数（用于自动拆分翻译，0 表示无限制）
   Merge alternating line numbers: 合并交替行号
   Minimum text length to translate: 最小翻译文本长度
-  'Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM': 大多数 API 提供商都提供此参数，例如 OpenAI GPT-4:500 RPM
+  "Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM": 大多数 API 提供商都提供此参数，例如 OpenAI GPT-4:500 RPM
   No Watermark: 无水印
   Non-formula line IoU threshold: 非公式线条 IoU 阈值
   Number of requests sent per second: 每秒发送的请求数
@@ -964,7 +955,7 @@ zh:
   Pool Max Workers: 最大工作线程数
   Primary font family for translated text: 翻译文本的主要字体
   Protection threshold for figures and tables (lines within figures/tables will not be processed): 图表保护阈值（图表内文字将不被处理）
-  Put translated pages first in dual mode: 在双语模式下优先显示翻译后的页面
+  Put translated pages first in dual mode: 双语模式优先显示翻译后页面
   QPS (Queries Per Second): QPS（每秒查询数）
   RPC service for document layout analysis (optional): 用于文档布局分析的 RPC 服务（可选）
   RPM (Requests Per Minute): RPM（每分钟请求数）
@@ -974,8 +965,7 @@ zh:
   Remove non-formula lines within paragraph areas: 移除段落区域内的非公式行
   Save Settings: 保存设置
   Saving configuration...: 正在保存配置...
-  ? Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button
-  : 请选择最适合您 API 提供商的速率限制模式，点击翻译按钮后系统将自动将 RPM 或并发请求的限流值转换为 QPS 和池最大工作线程数
+  Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button: 请选择最适合您 API 提供商的速率限制模式，点击翻译按钮后系统将自动将 RPM 或并发请求的限流值转换为 QPS 和池最大工作线程数
   Service: 服务
   Skip clean (maybe improve compatibility): 跳过清理（可能提升兼容性）
   Skip formula offset calculation: 跳过公式偏移量计算
@@ -997,20 +987,20 @@ zh:
   Translation complete!: 翻译完成！
   Type: 类型
   UI Language: 界面语言
-  Use alternating pages for dual PDF: 使用交替页面进行双页 PDF 阅读
+  Use alternating pages for dual PDF: 使用交替页面阅读双页 PDF
   Watermark mode: 水印模式
   Watermarked: 带水印
-  e.g. /no_think You are a professional zh-CN native translator who needs to fluently translate text into zh-CN.: 例如：/no_think 你是一名专业的简体中文母语译者，需要流利地将文本翻译为简体中文。
+  e.g. /no_think You are a professional zh-CN native translator who needs to fluently translate text into zh-CN.: 例如：/no_think 你是一名专业的...
   e.g., 1,3,5-10: 例如：1、3、5-10
   save automatically extracted glossary: 保存自动提取的术语表
 zh-TW:
-  '## File': '## 檔案'
-  '## PDF Output Options': '## PDF 輸出選項'
-  '## Preview': '## 預覽'
-  '## Translated': '## 已翻譯'
-  '## Translation Options': '## 翻譯選項'
-  '### PDF Options': '### PDF 選項'
-  '#### BabelDOC Advanced Options': '#### BabelDOC 進階選項'
+  "## File": "## 檔案"
+  "## PDF Output Options": "## PDF 輸出選項"
+  "## Preview": "## 預覽"
+  "## Translated": "## 已翻譯"
+  "## Translation Options": "## 翻譯選項"
+  "### PDF Options": "### PDF 選項"
+  "#### BabelDOC Advanced Options": "#### BabelDOC 進階選項"
   Advanced Options: 進階選項
   All: 全部
   Auto Term Extraction: 自動術語擷取
@@ -1020,7 +1010,7 @@ zh-TW:
   Character pattern to identify formula text (regex, not recommended to change): 用於識別公式文字的字元模式（正規表示式，不建議更改）
   Concurrent Requests: 並行請求
   Concurrent Threads: 並行執行緒
-  'Configuration saved to: {path}': 設定已儲存至：{path}
+  "Configuration saved to: {path}": 設定已儲存至：{path}
   Custom: 自訂
   Custom System Prompt: 自訂系統提示
   Custom prompt for the translator: 翻譯器的自訂提示
@@ -1053,7 +1043,7 @@ zh-TW:
   Maximum pages per part (for auto-split translation, 0 means no limit): 每個部分的最大頁數（用於自動分割翻譯，0 表示無限制）
   Merge alternating line numbers: 合併交替行號
   Minimum text length to translate: 最小翻譯文字長度
-  'Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM': 大多數 API 供應商都會提供此參數，例如 OpenAI GPT-4:500 RPM
+  "Most API providers provide this parameter, such as OpenAI GPT-4: 500 RPM": 大多數 API 供應商都會提供此參數，例如 OpenAI GPT-4:500 RPM
   No Watermark: 無浮水印
   Non-formula line IoU threshold: 非公式線 IoU 閾值
   Number of requests sent per second: 每秒發送的請求數量
@@ -1074,8 +1064,7 @@ zh-TW:
   Remove non-formula lines within paragraph areas: 移除段落區域內的非公式行
   Save Settings: 儲存設定
   Saving configuration...: 正在儲存設定...
-  ? Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button
-  : 請選擇最適合您 API 供應商的速率限制模式，點擊「轉換」按鈕後，系統會自動將 RPM 或併發請求的限流值轉換為 QPS 和池最大工作線程數。
+  Select the rate limit mode that best suits your API provider, system will automatically convert the rate limiting values of RPM or Concurrent Requests to QPS and Pool Max Workers when you click the Translate button: 請選擇最適合您 API 供應商的速率限制模式，點擊「轉換」按鈕後，系統會自動將 RPM 或併發請求的限流值轉換為 QPS 和池最大工作線程數。
   Service: 服務
   Skip clean (maybe improve compatibility): 跳過清理（可能提升相容性）
   Skip formula offset calculation: 跳過公式偏移計算
