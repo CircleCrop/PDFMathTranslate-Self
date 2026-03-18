@@ -75,6 +75,10 @@ class TestTranslationSettings:
         assert settings.prompt_override_file is None
         assert settings.model_param_profile == "default"
         assert settings.model_param_override_file is None
+        assert settings.llm_temperature is None
+        assert settings.paragraph_batch_token_limit is None
+        assert settings.openai_max_tokens is None
+        assert settings.gemini_temperature is None
 
     def test_custom_values(self, tmp_path):
         """Test setting custom values"""
@@ -89,6 +93,11 @@ class TestTranslationSettings:
             prompt_override_file="/workspace/prompts.yaml",
             model_param_profile="custom-params",
             model_param_override_file="/workspace/model-params.yaml",
+            llm_temperature=0.3,
+            llm_top_p=0.9,
+            paragraph_batch_token_limit=256,
+            openai_max_tokens=4096,
+            gemini_temperature=0.2,
         )
         assert settings.min_text_length == 10
         assert settings.lang_in == "fr"
@@ -100,6 +109,20 @@ class TestTranslationSettings:
         assert settings.prompt_override_file == "/workspace/prompts.yaml"
         assert settings.model_param_profile == "custom-params"
         assert settings.model_param_override_file == "/workspace/model-params.yaml"
+        assert settings.llm_temperature == 0.3
+        assert settings.llm_top_p == 0.9
+        assert settings.paragraph_batch_token_limit == 256
+        assert settings.openai_max_tokens == 4096
+        assert settings.gemini_temperature == 0.2
+
+    def test_runtime_model_param_validation(self):
+        settings = CLIEnvSettingsModel(
+            openai=True,
+            openai_detail={"openai_api_key": "test-key"},
+            translation={"llm_top_p": 1.5},
+        ).to_settings_model()
+        with pytest.raises(ValueError, match="llm_top_p"):
+            settings.validate_settings()
 
 
 class TestPDFSettings:

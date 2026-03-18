@@ -102,11 +102,26 @@ class ModelParamBundle:
     ) -> tuple[ModelFamily, dict[str, Any]]:
         family = detect_model_family(model_name=model_name, provider_name=provider_name)
         resolved: dict[str, Any] = {}
+        family_params = self.families.get(family.value, {})
         resolved.update(self.defaults)
-        resolved.update(self.families.get(family.value, {}))
+        resolved.update(family_params)
         resolved.update(self.providers.get(provider_name, {}))
+        # Gemini currently uses an OpenAI-compatible transport path in this project.
+        # Re-apply Gemini family overrides so Gemini-specific controls still win over
+        # generic OpenAI provider defaults such as max_tokens.
+        if provider_name == "openai" and family is ModelFamily.GEMINI:
+            resolved.update(family_params)
         resolved = {k: v for k, v in resolved.items() if v is not None}
         return family, resolved
+
+
+def _set_override_if_present(
+    target: dict[str, Any],
+    key: str,
+    value: Any,
+) -> None:
+    if value is not None:
+        target[key] = value
 
 
 def _extract_profile(config: dict[str, Any], profile_name: str) -> dict[str, Any]:
@@ -201,6 +216,110 @@ def load_model_param_bundle(
             section_name="Model param provider",
             profile_name=profile_name,
         ),
+    )
+
+
+def apply_translation_model_param_overrides(
+    bundle: ModelParamBundle,
+    translation_settings: Any,
+) -> ModelParamBundle:
+    defaults = dict(bundle.defaults)
+    families = {key: dict(value) for key, value in bundle.families.items()}
+    providers = {key: dict(value) for key, value in bundle.providers.items()}
+
+    _set_override_if_present(defaults, "temperature", translation_settings.llm_temperature)
+    _set_override_if_present(defaults, "top_p", translation_settings.llm_top_p)
+    _set_override_if_present(defaults, "top_k", translation_settings.llm_top_k)
+    _set_override_if_present(defaults, "max_tokens", translation_settings.llm_max_tokens)
+    _set_override_if_present(
+        defaults,
+        "timeout_seconds",
+        translation_settings.llm_timeout_seconds,
+    )
+
+    babeldoc_params = dict(providers.get("babeldoc", {}))
+    _set_override_if_present(
+        babeldoc_params,
+        "paragraph_batch_token_limit",
+        translation_settings.paragraph_batch_token_limit,
+    )
+    _set_override_if_present(
+        babeldoc_params,
+        "paragraph_batch_size_limit",
+        translation_settings.paragraph_batch_size_limit,
+    )
+    _set_override_if_present(
+        babeldoc_params,
+        "term_batch_token_limit",
+        translation_settings.term_batch_token_limit,
+    )
+    _set_override_if_present(
+        babeldoc_params,
+        "term_batch_size_limit",
+        translation_settings.term_batch_size_limit,
+    )
+    _set_override_if_present(
+        babeldoc_params,
+        "llm_output_ratio_min",
+        translation_settings.llm_output_ratio_min,
+    )
+    _set_override_if_present(
+        babeldoc_params,
+        "llm_output_ratio_max",
+        translation_settings.llm_output_ratio_max,
+    )
+    _set_override_if_present(
+        babeldoc_params,
+        "same_as_input_min_input_tokens",
+        translation_settings.same_as_input_min_input_tokens,
+    )
+    _set_override_if_present(
+        babeldoc_params,
+        "same_text_edit_distance_threshold",
+        translation_settings.same_text_edit_distance_threshold,
+    )
+    _set_override_if_present(
+        babeldoc_params,
+        "same_text_min_input_tokens",
+        translation_settings.same_text_min_input_tokens,
+    )
+    if babeldoc_params:
+        providers["babeldoc"] = babeldoc_params
+
+    openai_params = dict(providers.get("openai", {}))
+    _set_override_if_present(
+        openai_params,
+        "max_tokens",
+        translation_settings.openai_max_tokens,
+    )
+    if openai_params:
+        providers["openai"] = openai_params
+
+    gemini_params = dict(families.get(ModelFamily.GEMINI.value, {}))
+    _set_override_if_present(
+        gemini_params,
+        "temperature",
+        translation_settings.gemini_temperature,
+    )
+    _set_override_if_present(gemini_params, "top_p", translation_settings.gemini_top_p)
+    _set_override_if_present(
+        gemini_params,
+        "max_tokens",
+        translation_settings.gemini_max_tokens,
+    )
+    _set_override_if_present(
+        gemini_params,
+        "timeout_seconds",
+        translation_settings.gemini_timeout_seconds,
+    )
+    if gemini_params:
+        families[ModelFamily.GEMINI.value] = gemini_params
+
+    return ModelParamBundle(
+        profile_name=bundle.profile_name,
+        defaults=defaults,
+        families=families,
+        providers=providers,
     )
 
 

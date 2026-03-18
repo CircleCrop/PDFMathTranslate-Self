@@ -118,6 +118,82 @@ class TranslationSettings(BaseModel):
         default=None,
         description="Optional YAML file that overrides packaged model parameters",
     )
+    llm_temperature: float | None = Field(
+        default=None,
+        description="Generic LLM temperature override applied after model-param profiles",
+    )
+    llm_top_p: float | None = Field(
+        default=None,
+        description="Generic LLM top-p override applied after model-param profiles",
+    )
+    llm_top_k: int | None = Field(
+        default=None,
+        description="Generic LLM top-k override applied after model-param profiles",
+    )
+    llm_max_tokens: int | None = Field(
+        default=None,
+        description="Generic LLM max-tokens override applied after model-param profiles",
+    )
+    llm_timeout_seconds: float | None = Field(
+        default=None,
+        description="Generic LLM timeout override applied after model-param profiles",
+    )
+    paragraph_batch_token_limit: int | None = Field(
+        default=None,
+        description="BabelDOC paragraph batch token limit override",
+    )
+    paragraph_batch_size_limit: int | None = Field(
+        default=None,
+        description="BabelDOC paragraph batch size override",
+    )
+    term_batch_token_limit: int | None = Field(
+        default=None,
+        description="BabelDOC term extraction batch token limit override",
+    )
+    term_batch_size_limit: int | None = Field(
+        default=None,
+        description="BabelDOC term extraction batch size override",
+    )
+    llm_output_ratio_min: float | None = Field(
+        default=None,
+        description="Minimum accepted LLM output/input ratio before fallback",
+    )
+    llm_output_ratio_max: float | None = Field(
+        default=None,
+        description="Maximum accepted LLM output/input ratio before fallback",
+    )
+    same_as_input_min_input_tokens: int | None = Field(
+        default=None,
+        description="Minimum input tokens before exact-same-text fallback applies",
+    )
+    same_text_edit_distance_threshold: int | None = Field(
+        default=None,
+        description="Edit-distance threshold for near-same-text fallback",
+    )
+    same_text_min_input_tokens: int | None = Field(
+        default=None,
+        description="Minimum input tokens before near-same-text fallback applies",
+    )
+    openai_max_tokens: int | None = Field(
+        default=None,
+        description="OpenAI provider max-tokens override applied after generic LLM parameters",
+    )
+    gemini_temperature: float | None = Field(
+        default=None,
+        description="Gemini family temperature override applied after generic LLM parameters",
+    )
+    gemini_top_p: float | None = Field(
+        default=None,
+        description="Gemini family top-p override applied after generic LLM parameters",
+    )
+    gemini_max_tokens: int | None = Field(
+        default=None,
+        description="Gemini family max-tokens override applied after generic LLM parameters",
+    )
+    gemini_timeout_seconds: float | None = Field(
+        default=None,
+        description="Gemini family timeout override applied after generic LLM parameters",
+    )
     glossaries: str | None = Field(
         default=None,
         description="Glossary file list.",
@@ -268,6 +344,20 @@ class SettingsModel(BaseModel):
 
     def validate_settings(self) -> None:
         """Validate settings"""
+        def _validate_optional_numeric(
+            value: int | float | None,
+            field_name: str,
+            *,
+            min_value: int | float | None = None,
+            max_value: int | float | None = None,
+        ) -> None:
+            if value is None:
+                return
+            if min_value is not None and value < min_value:
+                raise ValueError(f"{field_name} must be greater than or equal to {min_value}")
+            if max_value is not None and value > max_value:
+                raise ValueError(f"{field_name} must be less than or equal to {max_value}")
+
         # Validate translation service selection
 
         if self.basic.warmup:
@@ -414,6 +504,113 @@ class SettingsModel(BaseModel):
 
         if self.translation.min_text_length < 0:
             raise ValueError("min_text_length must be greater than or equal to 0")
+
+        _validate_optional_numeric(
+            self.translation.llm_temperature,
+            "llm_temperature",
+            min_value=0,
+        )
+        _validate_optional_numeric(
+            self.translation.llm_top_p,
+            "llm_top_p",
+            min_value=0,
+            max_value=1,
+        )
+        _validate_optional_numeric(
+            self.translation.llm_top_k,
+            "llm_top_k",
+            min_value=0,
+        )
+        _validate_optional_numeric(
+            self.translation.llm_max_tokens,
+            "llm_max_tokens",
+            min_value=1,
+        )
+        _validate_optional_numeric(
+            self.translation.llm_timeout_seconds,
+            "llm_timeout_seconds",
+            min_value=0.1,
+        )
+        _validate_optional_numeric(
+            self.translation.paragraph_batch_token_limit,
+            "paragraph_batch_token_limit",
+            min_value=1,
+        )
+        _validate_optional_numeric(
+            self.translation.paragraph_batch_size_limit,
+            "paragraph_batch_size_limit",
+            min_value=1,
+        )
+        _validate_optional_numeric(
+            self.translation.term_batch_token_limit,
+            "term_batch_token_limit",
+            min_value=1,
+        )
+        _validate_optional_numeric(
+            self.translation.term_batch_size_limit,
+            "term_batch_size_limit",
+            min_value=1,
+        )
+        _validate_optional_numeric(
+            self.translation.llm_output_ratio_min,
+            "llm_output_ratio_min",
+            min_value=0,
+        )
+        _validate_optional_numeric(
+            self.translation.llm_output_ratio_max,
+            "llm_output_ratio_max",
+            min_value=0,
+        )
+        if (
+            self.translation.llm_output_ratio_min is not None
+            and self.translation.llm_output_ratio_max is not None
+            and self.translation.llm_output_ratio_min
+            > self.translation.llm_output_ratio_max
+        ):
+            raise ValueError(
+                "llm_output_ratio_min must be less than or equal to llm_output_ratio_max"
+            )
+        _validate_optional_numeric(
+            self.translation.same_as_input_min_input_tokens,
+            "same_as_input_min_input_tokens",
+            min_value=0,
+        )
+        _validate_optional_numeric(
+            self.translation.same_text_edit_distance_threshold,
+            "same_text_edit_distance_threshold",
+            min_value=0,
+        )
+        _validate_optional_numeric(
+            self.translation.same_text_min_input_tokens,
+            "same_text_min_input_tokens",
+            min_value=0,
+        )
+        _validate_optional_numeric(
+            self.translation.openai_max_tokens,
+            "openai_max_tokens",
+            min_value=1,
+        )
+        _validate_optional_numeric(
+            self.translation.gemini_temperature,
+            "gemini_temperature",
+            min_value=0,
+        )
+        _validate_optional_numeric(
+            self.translation.gemini_top_p,
+            "gemini_top_p",
+            min_value=0,
+            max_value=1,
+        )
+        _validate_optional_numeric(
+            self.translation.gemini_max_tokens,
+            "gemini_max_tokens",
+            min_value=1,
+        )
+        _validate_optional_numeric(
+            self.translation.gemini_timeout_seconds,
+            "gemini_timeout_seconds",
+            min_value=0.1,
+        )
 
         if self.report_interval < 0.05:
             raise ValueError("report_interval must be greater than or equal to 0.05")

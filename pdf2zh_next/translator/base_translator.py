@@ -7,6 +7,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from pdf2zh_next.config.model import SettingsModel
+from pdf2zh_next.runtime import apply_translation_model_param_overrides
 from pdf2zh_next.runtime import build_main_role_block
 from pdf2zh_next.runtime import load_model_param_bundle
 from pdf2zh_next.runtime import load_prompt_bundle
@@ -40,9 +41,12 @@ class BaseTranslator(ABC):
             profile_name=settings.translation.prompt_profile,
             override_file=settings.translation.prompt_override_file,
         )
-        self.model_param_bundle = load_model_param_bundle(
-            profile_name=settings.translation.model_param_profile,
-            override_file=settings.translation.model_param_override_file,
+        self.model_param_bundle = apply_translation_model_param_overrides(
+            load_model_param_bundle(
+                profile_name=settings.translation.model_param_profile,
+                override_file=settings.translation.model_param_override_file,
+            ),
+            settings.translation,
         )
         self._warned_ignored_runtime_params: set[tuple[str, tuple[str, ...]]] = set()
         self.ignore_cache = settings.translation.ignore_cache

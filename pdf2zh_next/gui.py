@@ -11,6 +11,7 @@ import zipfile
 from enum import Enum
 from pathlib import Path
 from string import Template
+from urllib.parse import quote
 
 import chardet
 import gradio as gr
@@ -278,6 +279,54 @@ assert available_services, "No translation service is enabled"
 
 
 disable_gui_sensitive_input = settings.gui_settings.disable_gui_sensitive_input
+
+TRANSLATION_RUNTIME_PARAM_CASTERS = {
+    "llm_temperature": float,
+    "llm_top_p": float,
+    "llm_top_k": int,
+    "llm_max_tokens": int,
+    "llm_timeout_seconds": float,
+    "paragraph_batch_token_limit": int,
+    "paragraph_batch_size_limit": int,
+    "term_batch_token_limit": int,
+    "term_batch_size_limit": int,
+    "llm_output_ratio_min": float,
+    "llm_output_ratio_max": float,
+    "same_as_input_min_input_tokens": int,
+    "same_text_edit_distance_threshold": int,
+    "same_text_min_input_tokens": int,
+    "openai_max_tokens": int,
+    "gemini_temperature": float,
+    "gemini_top_p": float,
+    "gemini_max_tokens": int,
+    "gemini_timeout_seconds": float,
+}
+
+
+def _update_optional_translation_runtime_fields(
+    translation_settings,
+    ui_inputs: dict,
+) -> None:
+    for field_name, caster in TRANSLATION_RUNTIME_PARAM_CASTERS.items():
+        value = ui_inputs.get(field_name)
+        setattr(
+            translation_settings,
+            field_name,
+            None if value in (None, "") else caster(value),
+        )
+
+
+def _build_preview_action_html(preview_path: str | None) -> str:
+    if not preview_path:
+        return ""
+
+    file_url = f"/file={quote(str(Path(preview_path).resolve()), safe='/')}"
+    return f"""
+<div class="preview-actions">
+  <a class="preview-action-link" href="{file_url}" target="_blank" rel="noopener noreferrer">Open</a>
+  <a class="preview-action-link" href="{file_url}" download>Download</a>
+</div>
+"""
 
 
 def _get_default_service_name() -> str:
@@ -564,6 +613,31 @@ def _build_translate_settings(
     # Advanced Translation Options
     min_text_length = ui_inputs.get("min_text_length")
     rpc_doclayout = ui_inputs.get("rpc_doclayout")
+    prompt_profile_input = ui_inputs.get("prompt_profile_input")
+    prompt_override_file_input = ui_inputs.get("prompt_override_file_input")
+    model_param_profile_input = ui_inputs.get("model_param_profile_input")
+    model_param_override_file_input = ui_inputs.get("model_param_override_file_input")
+    llm_temperature = ui_inputs.get("llm_temperature")
+    llm_top_p = ui_inputs.get("llm_top_p")
+    llm_top_k = ui_inputs.get("llm_top_k")
+    llm_max_tokens = ui_inputs.get("llm_max_tokens")
+    llm_timeout_seconds = ui_inputs.get("llm_timeout_seconds")
+    paragraph_batch_token_limit = ui_inputs.get("paragraph_batch_token_limit")
+    paragraph_batch_size_limit = ui_inputs.get("paragraph_batch_size_limit")
+    term_batch_token_limit = ui_inputs.get("term_batch_token_limit")
+    term_batch_size_limit = ui_inputs.get("term_batch_size_limit")
+    llm_output_ratio_min = ui_inputs.get("llm_output_ratio_min")
+    llm_output_ratio_max = ui_inputs.get("llm_output_ratio_max")
+    same_as_input_min_input_tokens = ui_inputs.get("same_as_input_min_input_tokens")
+    same_text_edit_distance_threshold = ui_inputs.get(
+        "same_text_edit_distance_threshold"
+    )
+    same_text_min_input_tokens = ui_inputs.get("same_text_min_input_tokens")
+    openai_max_tokens = ui_inputs.get("openai_max_tokens")
+    gemini_temperature = ui_inputs.get("gemini_temperature")
+    gemini_top_p = ui_inputs.get("gemini_top_p")
+    gemini_max_tokens = ui_inputs.get("gemini_max_tokens")
+    gemini_timeout_seconds = ui_inputs.get("gemini_timeout_seconds")
     enable_auto_term_extraction = ui_inputs.get("enable_auto_term_extraction")
     primary_font_family = ui_inputs.get("primary_font_family")
 
@@ -635,6 +709,44 @@ def _build_translate_settings(
         translate_settings.translation.min_text_length = int(min_text_length)
     if rpc_doclayout:
         translate_settings.translation.rpc_doclayout = rpc_doclayout
+    translate_settings.translation.prompt_profile = (
+        prompt_profile_input.strip() if prompt_profile_input else "default"
+    )
+    translate_settings.translation.prompt_override_file = (
+        prompt_override_file_input.strip() if prompt_override_file_input else None
+    )
+    translate_settings.translation.model_param_profile = (
+        model_param_profile_input.strip() if model_param_profile_input else "default"
+    )
+    translate_settings.translation.model_param_override_file = (
+        model_param_override_file_input.strip()
+        if model_param_override_file_input
+        else None
+    )
+    _update_optional_translation_runtime_fields(
+        translate_settings.translation,
+        {
+            "llm_temperature": llm_temperature,
+            "llm_top_p": llm_top_p,
+            "llm_top_k": llm_top_k,
+            "llm_max_tokens": llm_max_tokens,
+            "llm_timeout_seconds": llm_timeout_seconds,
+            "paragraph_batch_token_limit": paragraph_batch_token_limit,
+            "paragraph_batch_size_limit": paragraph_batch_size_limit,
+            "term_batch_token_limit": term_batch_token_limit,
+            "term_batch_size_limit": term_batch_size_limit,
+            "llm_output_ratio_min": llm_output_ratio_min,
+            "llm_output_ratio_max": llm_output_ratio_max,
+            "same_as_input_min_input_tokens": same_as_input_min_input_tokens,
+            "same_text_edit_distance_threshold": same_text_edit_distance_threshold,
+            "same_text_min_input_tokens": same_text_min_input_tokens,
+            "openai_max_tokens": openai_max_tokens,
+            "gemini_temperature": gemini_temperature,
+            "gemini_top_p": gemini_top_p,
+            "gemini_max_tokens": gemini_max_tokens,
+            "gemini_timeout_seconds": gemini_timeout_seconds,
+        },
+    )
 
     # UI uses positive switch, config uses negative flag, so we invert here
     if enable_auto_term_extraction is not None:
@@ -897,7 +1009,14 @@ def build_ui_inputs(*args):
             service, lang_from, lang_to, page_range, page_input,
             no_mono, no_dual, dual_translate_first, use_alternating_pages_dual, watermark_output_mode,
             rate_limit_mode, rpm_input, concurrent_threads_input, custom_qps_input, custom_pool_max_workers_input,
-            prompt, min_text_length, rpc_doclayout, custom_system_prompt_input, glossary_file,
+            prompt, min_text_length, rpc_doclayout, prompt_profile_input, prompt_override_file_input,
+            model_param_profile_input, model_param_override_file_input, llm_temperature, llm_top_p,
+            llm_top_k, llm_max_tokens, llm_timeout_seconds, paragraph_batch_token_limit,
+            paragraph_batch_size_limit, term_batch_token_limit, term_batch_size_limit,
+            llm_output_ratio_min, llm_output_ratio_max, same_as_input_min_input_tokens,
+            same_text_edit_distance_threshold, same_text_min_input_tokens, openai_max_tokens,
+            gemini_temperature, gemini_top_p, gemini_max_tokens, gemini_timeout_seconds,
+            custom_system_prompt_input, glossary_file,
             save_auto_extracted_glossary, enable_auto_term_extraction, primary_font_family, skip_clean,
             disable_rich_text_translate, enhance_compatibility, split_short_lines, short_line_split_factor,
             translate_table_text, skip_scanned_detection, max_pages_per_part, formular_font_pattern,
@@ -930,6 +1049,29 @@ def build_ui_inputs(*args):
         "prompt",
         "min_text_length",
         "rpc_doclayout",
+        "prompt_profile_input",
+        "prompt_override_file_input",
+        "model_param_profile_input",
+        "model_param_override_file_input",
+        "llm_temperature",
+        "llm_top_p",
+        "llm_top_k",
+        "llm_max_tokens",
+        "llm_timeout_seconds",
+        "paragraph_batch_token_limit",
+        "paragraph_batch_size_limit",
+        "term_batch_token_limit",
+        "term_batch_size_limit",
+        "llm_output_ratio_min",
+        "llm_output_ratio_max",
+        "same_as_input_min_input_tokens",
+        "same_text_edit_distance_threshold",
+        "same_text_min_input_tokens",
+        "openai_max_tokens",
+        "gemini_temperature",
+        "gemini_top_p",
+        "gemini_max_tokens",
+        "gemini_timeout_seconds",
         "custom_system_prompt_input",
         "glossary_file",  # will be converted to glossaries
         "save_auto_extracted_glossary",
@@ -1173,9 +1315,15 @@ async def translate_files(
         else:
             uploaded_view_update = gr.update(value="", visible=False)
 
+        preview_actions_update = gr.update(
+            value=_build_preview_action_html(preview_path),
+            visible=bool(preview_path),
+        )
+
         return (
             current_res["mono"],
             preview_path,
+            preview_actions_update,
             current_res["dual"],
             current_res["glossary"],
             gr.update(visible=bool(current_res["mono"])),
@@ -1362,6 +1510,7 @@ async def translate_files(
         (
             final_mono,
             final_preview_path,
+            final_preview_actions_update,
             final_dual,
             final_glossary,
             vis_mono,
@@ -1390,6 +1539,7 @@ async def translate_files(
         yield (
             final_mono,
             final_preview_path,
+            final_preview_actions_update,
             final_dual,
             final_glossary,
             vis_mono,
@@ -1415,6 +1565,7 @@ async def translate_files(
         yield (
             None,
             None,
+            gr.update(value="", visible=False),
             None,
             None,
             gr.update(visible=False),
@@ -1450,6 +1601,7 @@ def update_preview(selected_label, state):
         return (
             None,
             None,
+            gr.update(value="", visible=False),
             None,
             None,
             gr.update(visible=False),
@@ -1465,6 +1617,7 @@ def update_preview(selected_label, state):
         return (
             None,
             None,
+            gr.update(value="", visible=False),
             None,
             None,
             gr.update(visible=False),
@@ -1488,6 +1641,10 @@ def update_preview(selected_label, state):
     return (
         mono_path,  # Download Mono Button Value
         preview_path,  # PDF Preview Value (Critical Fix: Always return this if found)
+        gr.update(
+            value=_build_preview_action_html(preview_path),
+            visible=True,
+        ),
         dual_path,  # Download Dual Button Value
         glossary_path,  # Download Glossary Button Value
         gr.update(visible=bool(mono_path)),  # Mono Button Visibility
@@ -1618,6 +1775,13 @@ custom_blue = gr.themes.Color(
 )
 
 custom_css = """
+    .gradio-container {
+        width: min(100%, 1600px) !important;
+        max-width: 1600px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
     .secondary-text {color: #999 !important;}
     footer {visibility: hidden}
     .env-warning {color: #dd5500 !important;}
@@ -1639,6 +1803,31 @@ custom_css = """
 
     .pdf-canvas canvas {
         width: 100%;
+    }
+
+    .preview-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+    }
+
+    .preview-action-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        padding: 0 16px;
+        border: 1px solid var(--border-color-primary, #d1d5db);
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    @media (max-width: 767px) {
+        .preview-actions {
+            grid-template-columns: 1fr;
+        }
     }
     """
 
@@ -1679,28 +1868,29 @@ with gr.Blocks(
         with gr.Row():
             with gr.Column(scale=1):
                 gr.Markdown(_("## File(s)"))
-                file_type = gr.Radio(
-                    choices=[("File(s)", "File"), ("Link", "Link")],
-                    label="Type",
-                    value="File",
-                )
-                file_input = gr.File(
-                    label=_("File(s)"),
-                    file_count="multiple",
-                    file_types=[".pdf", ".PDF"],
-                    type="filepath",
-                    elem_classes=["input-file"],
-                )
-                link_input = gr.Textbox(
-                    label=_("Link"),
-                    visible=False,
-                    interactive=True,
-                )
-                uploaded_files_view = gr.Markdown(
-                    label=_("Uploaded files (this session)"),
-                    value="",
-                    visible=False,
-                )
+                with gr.Accordion(_("Input Source"), open=True):
+                    file_type = gr.Radio(
+                        choices=[("File(s)", "File"), ("Link", "Link")],
+                        label="Type",
+                        value="File",
+                    )
+                    file_input = gr.File(
+                        label=_("File(s)"),
+                        file_count="multiple",
+                        file_types=[".pdf", ".PDF"],
+                        type="filepath",
+                        elem_classes=["input-file"],
+                    )
+                    link_input = gr.Textbox(
+                        label=_("Link"),
+                        visible=False,
+                        interactive=True,
+                    )
+                    uploaded_files_view = gr.Markdown(
+                        label=_("Uploaded files (this session)"),
+                        value="",
+                        visible=False,
+                    )
 
                 gr.Markdown(_("## Translation Options"))
 
@@ -1810,6 +2000,40 @@ with gr.Blocks(
                                 detail_text_inputs.append(field_input)
                                 __gui_service_arg_names.append(field_name)
                                 translation_engine_arg_inputs.append(field_input)
+
+                    with gr.Group(
+                        visible=_get_default_service_name() == "Gemini"
+                    ) as gemini_runtime_group:
+                        gr.Markdown(_("### Gemini Provider Overrides"))
+                        with gr.Row():
+                            gemini_temperature = gr.Number(
+                                label=_("Gemini temperature"),
+                                value=settings.translation.gemini_temperature,
+                                minimum=0,
+                                interactive=True,
+                            )
+                            gemini_top_p = gr.Number(
+                                label=_("Gemini top P"),
+                                value=settings.translation.gemini_top_p,
+                                minimum=0,
+                                maximum=1,
+                                interactive=True,
+                            )
+                        with gr.Row():
+                            gemini_max_tokens = gr.Number(
+                                label=_("Gemini max tokens"),
+                                value=settings.translation.gemini_max_tokens,
+                                precision=0,
+                                minimum=1,
+                                interactive=True,
+                            )
+                            gemini_timeout_seconds = gr.Number(
+                                label=_("Gemini timeout seconds"),
+                                value=settings.translation.gemini_timeout_seconds,
+                                minimum=0.1,
+                                interactive=True,
+                            )
+
                     with gr.Group() as rate_limit_settings:
                         rate_limit_mode = gr.Radio(
                             choices=[
@@ -2075,40 +2299,41 @@ with gr.Blocks(
 
                 # PDF Output Options
                 gr.Markdown(_("## PDF Output Options"))
-                with gr.Row():
-                    no_mono = gr.Checkbox(
-                        label=_("Disable monolingual output"),
-                        value=settings.pdf.no_mono,
-                        interactive=True,
-                    )
-                    no_dual = gr.Checkbox(
-                        label=_("Disable bilingual output"),
-                        value=settings.pdf.no_dual,
-                        interactive=True,
-                    )
+                with gr.Group():
+                    with gr.Row():
+                        with gr.Column(scale=1, min_width=0):
+                            no_mono = gr.Checkbox(
+                                label=_("Disable monolingual output"),
+                                value=settings.pdf.no_mono,
+                                interactive=True,
+                            )
+                            dual_translate_first = gr.Checkbox(
+                                label=_("Put translated pages first in dual mode"),
+                                value=settings.pdf.dual_translate_first,
+                                interactive=True,
+                            )
+                        with gr.Column(scale=1, min_width=0):
+                            no_dual = gr.Checkbox(
+                                label=_("Disable bilingual output"),
+                                value=settings.pdf.no_dual,
+                                interactive=True,
+                            )
+                            use_alternating_pages_dual = gr.Checkbox(
+                                label=_("Use alternating pages for dual PDF"),
+                                value=settings.pdf.use_alternating_pages_dual,
+                                interactive=True,
+                            )
 
-                with gr.Row():
-                    dual_translate_first = gr.Checkbox(
-                        label=_("Put translated pages first in dual mode"),
-                        value=settings.pdf.dual_translate_first,
-                        interactive=True,
+                    watermark_output_mode = gr.Radio(
+                        choices=[
+                            ("Watermarked", "Watermarked"),
+                            ("No Watermark", "No Watermark"),
+                        ],
+                        label="Watermark mode",
+                        value="Watermarked"
+                        if settings.pdf.watermark_output_mode == "watermarked"
+                        else "No Watermark",
                     )
-                    use_alternating_pages_dual = gr.Checkbox(
-                        label=_("Use alternating pages for dual PDF"),
-                        value=settings.pdf.use_alternating_pages_dual,
-                        interactive=True,
-                    )
-
-                watermark_output_mode = gr.Radio(
-                    choices=[
-                        ("Watermarked", "Watermarked"),
-                        ("No Watermark", "No Watermark"),
-                    ],
-                    label="Watermark mode",
-                    value="Watermarked"
-                    if settings.pdf.watermark_output_mode == "watermarked"
-                    else "No Watermark",
-                )
 
                 # Additional translation options
                 with gr.Accordion(_("Advanced Options"), open=False):
@@ -2119,6 +2344,168 @@ with gr.Blocks(
                         interactive=True,
                         placeholder=_("Custom prompt for the translator"),
                     )
+
+                    gr.Markdown(
+                        _(
+                            "Use these four fields only when you want to switch away from the packaged defaults.\n"
+                            "- Prompt template profile: profile name under `profiles` in the prompt YAML. Usually `default`.\n"
+                            "- Prompt override YAML file: optional custom prompt YAML path. Leave blank to use packaged prompt templates.\n"
+                            "- Model parameter profile: profile name under `profiles` in the model-params YAML. Usually `default`.\n"
+                            "- Model parameter override YAML file: optional custom model-params YAML path.\n"
+                            "- Any direct values you set below in this panel override the selected profile and YAML file.\n"
+                            "- Override file paths may be absolute paths or paths relative to the current working directory. Click `Save Settings` if you want the current values to become the default."
+                        )
+                    )
+
+                    prompt_profile_input = gr.Textbox(
+                        label=_("Prompt template profile"),
+                        value=settings.translation.prompt_profile,
+                        interactive=True,
+                        placeholder="default",
+                    )
+
+                    prompt_override_file_input = gr.Textbox(
+                        label=_("Prompt override YAML file"),
+                        value=settings.translation.prompt_override_file or "",
+                        interactive=True,
+                        placeholder="/path/to/prompts.yaml",
+                    )
+
+                    model_param_profile_input = gr.Textbox(
+                        label=_("Model parameter profile"),
+                        value=settings.translation.model_param_profile,
+                        interactive=True,
+                        placeholder="default",
+                    )
+
+                    model_param_override_file_input = gr.Textbox(
+                        label=_("Model parameter override YAML file"),
+                        value=settings.translation.model_param_override_file or "",
+                        interactive=True,
+                        placeholder="/path/to/model-params.yaml",
+                    )
+
+                    with gr.Group(
+                        visible=LLM_support_index_map.get(
+                            _get_default_service_name(),
+                            False,
+                        )
+                    ) as llm_runtime_group:
+                        gr.Markdown(_("### Core Translation Parameters"))
+                        with gr.Row():
+                            paragraph_batch_token_limit = gr.Number(
+                                label=_("Paragraph batch token limit"),
+                                value=settings.translation.paragraph_batch_token_limit,
+                                precision=0,
+                                minimum=1,
+                                interactive=True,
+                            )
+                            paragraph_batch_size_limit = gr.Number(
+                                label=_("Paragraph batch size limit"),
+                                value=settings.translation.paragraph_batch_size_limit,
+                                precision=0,
+                                minimum=1,
+                                interactive=True,
+                            )
+                        with gr.Row():
+                            term_batch_token_limit = gr.Number(
+                                label=_("Term batch token limit"),
+                                value=settings.translation.term_batch_token_limit,
+                                precision=0,
+                                minimum=1,
+                                interactive=True,
+                            )
+                            term_batch_size_limit = gr.Number(
+                                label=_("Term batch size limit"),
+                                value=settings.translation.term_batch_size_limit,
+                                precision=0,
+                                minimum=1,
+                                interactive=True,
+                            )
+                        with gr.Row():
+                            llm_output_ratio_min = gr.Number(
+                                label=_("Minimum output ratio"),
+                                value=settings.translation.llm_output_ratio_min,
+                                minimum=0,
+                                interactive=True,
+                            )
+                            llm_output_ratio_max = gr.Number(
+                                label=_("Maximum output ratio"),
+                                value=settings.translation.llm_output_ratio_max,
+                                minimum=0,
+                                interactive=True,
+                            )
+                        with gr.Row():
+                            same_as_input_min_input_tokens = gr.Number(
+                                label=_("Exact-match fallback min input tokens"),
+                                value=settings.translation.same_as_input_min_input_tokens,
+                                precision=0,
+                                minimum=0,
+                                interactive=True,
+                            )
+                            same_text_edit_distance_threshold = gr.Number(
+                                label=_("Same-text edit distance threshold"),
+                                value=settings.translation.same_text_edit_distance_threshold,
+                                precision=0,
+                                minimum=0,
+                                interactive=True,
+                            )
+                        same_text_min_input_tokens = gr.Number(
+                            label=_("Same-text fallback min input tokens"),
+                            value=settings.translation.same_text_min_input_tokens,
+                            precision=0,
+                            minimum=0,
+                            interactive=True,
+                        )
+
+                        gr.Markdown(_("### Generic LLM Parameters"))
+                        with gr.Row():
+                            llm_temperature = gr.Number(
+                                label=_("Temperature"),
+                                value=settings.translation.llm_temperature,
+                                minimum=0,
+                                interactive=True,
+                            )
+                            llm_top_p = gr.Number(
+                                label=_("Top P"),
+                                value=settings.translation.llm_top_p,
+                                minimum=0,
+                                maximum=1,
+                                interactive=True,
+                            )
+                        with gr.Row():
+                            llm_top_k = gr.Number(
+                                label=_("Top K"),
+                                value=settings.translation.llm_top_k,
+                                precision=0,
+                                minimum=0,
+                                interactive=True,
+                            )
+                            llm_max_tokens = gr.Number(
+                                label=_("Max tokens"),
+                                value=settings.translation.llm_max_tokens,
+                                precision=0,
+                                minimum=1,
+                                interactive=True,
+                            )
+                        llm_timeout_seconds = gr.Number(
+                            label=_("Timeout seconds"),
+                            value=settings.translation.llm_timeout_seconds,
+                            minimum=0.1,
+                            interactive=True,
+                        )
+
+                        with gr.Group(
+                            visible=_get_default_service_name() == "OpenAI"
+                        ) as openai_runtime_group:
+                            gr.Markdown(_("### OpenAI Provider Overrides"))
+                            openai_max_tokens = gr.Number(
+                                label=_("OpenAI max tokens"),
+                                value=settings.translation.openai_max_tokens,
+                                precision=0,
+                                minimum=1,
+                                interactive=True,
+                            )
 
                     # New Textbox for custom_system_prompt
                     custom_system_prompt_input = gr.Textbox(
@@ -2351,8 +2738,19 @@ with gr.Blocks(
                 output_file_zip_glossary = gr.File(
                     label=_("Download All Glossaries (ZIP)"), visible=False
                 )
-                translate_btn = gr.Button(_("Translate"), variant="primary")
-                cancel_btn = gr.Button(_("Cancel"), variant="secondary")
+                with gr.Row():
+                    translate_btn = gr.Button(
+                        _("Translate"),
+                        variant="primary",
+                        scale=1,
+                        min_width=0,
+                    )
+                    cancel_btn = gr.Button(
+                        _("Cancel"),
+                        variant="secondary",
+                        scale=1,
+                        min_width=0,
+                    )
                 save_btn = gr.Button(_("Save Settings"), variant="secondary")
                 lang_selector.render()
 
@@ -2365,6 +2763,7 @@ with gr.Blocks(
                     interactive=True,
                 )
                 preview = PDF(label=_("Document Preview"), visible=True, height=2000)
+                preview_actions = gr.HTML(value="", visible=False)
 
         # Event handlers
         def on_select_filetype(file_type):
@@ -2499,6 +2898,7 @@ with gr.Blocks(
             original_updates = on_select_service(service_name)
 
             rate_limit_visible = service_name != "SiliconFlowFree"
+            llm_support = LLM_support_index_map.get(service_name, False)
 
             detailed_visible = [gr.update(visible=False)] * 4
 
@@ -2510,7 +2910,18 @@ with gr.Blocks(
                 gr.update(visible=rate_limit_visible),
             ]
 
-            return original_updates + rate_limit_updates + detailed_visible
+            llm_runtime_updates = [
+                gr.update(visible=llm_support),
+                gr.update(visible=service_name == "OpenAI"),
+                gr.update(visible=service_name == "Gemini"),
+            ]
+
+            return (
+                original_updates
+                + rate_limit_updates
+                + detailed_visible
+                + llm_runtime_updates
+            )
 
         def on_lang_selector_change(lang):
             settings.gui_settings.ui_lang = lang
@@ -2574,6 +2985,9 @@ with gr.Blocks(
                 concurrent_threads_input,
                 custom_qps_input,
                 custom_pool_max_workers_input,
+                llm_runtime_group,
+                openai_runtime_group,
+                gemini_runtime_group,
             ],
         )
 
@@ -2659,6 +3073,29 @@ with gr.Blocks(
             prompt,
             min_text_length,
             rpc_doclayout,
+            prompt_profile_input,
+            prompt_override_file_input,
+            model_param_profile_input,
+            model_param_override_file_input,
+            llm_temperature,
+            llm_top_p,
+            llm_top_k,
+            llm_max_tokens,
+            llm_timeout_seconds,
+            paragraph_batch_token_limit,
+            paragraph_batch_size_limit,
+            term_batch_token_limit,
+            term_batch_size_limit,
+            llm_output_ratio_min,
+            llm_output_ratio_max,
+            same_as_input_min_input_tokens,
+            same_text_edit_distance_threshold,
+            same_text_min_input_tokens,
+            openai_max_tokens,
+            gemini_temperature,
+            gemini_top_p,
+            gemini_max_tokens,
+            gemini_timeout_seconds,
             custom_system_prompt_input,
             glossary_file,
             save_auto_extracted_glossary,
@@ -2699,6 +3136,9 @@ with gr.Blocks(
             siliconflow_free_acknowledgement,
             glossary_table,
             term_disabled_info,
+            llm_runtime_group,
+            openai_runtime_group,
+            gemini_runtime_group,
         ]
 
         # Translation button click handler
@@ -2713,6 +3153,7 @@ with gr.Blocks(
             outputs=[
                 output_file_mono,  # Mono PDF file
                 preview,  # Preview
+                preview_actions,  # Preview open/download actions
                 output_file_dual,  # Dual PDF file
                 output_file_glossary,
                 output_file_mono,  # Visibility of mono output
@@ -2741,6 +3182,7 @@ with gr.Blocks(
             outputs=[
                 output_file_mono,  # Mono PDF file
                 preview,  # Preview
+                preview_actions,  # Preview open/download actions
                 output_file_dual,  # Dual PDF file
                 output_file_glossary,
                 output_file_mono,  # Visibility of mono output
@@ -2838,6 +3280,87 @@ with gr.Blocks(
                 )
                 updates.append(
                     gr.update(value=fresh_settings.translation.rpc_doclayout or "")
+                )
+                updates.append(
+                    gr.update(value=fresh_settings.translation.prompt_profile)
+                )
+                updates.append(
+                    gr.update(
+                        value=fresh_settings.translation.prompt_override_file or ""
+                    )
+                )
+                updates.append(
+                    gr.update(value=fresh_settings.translation.model_param_profile)
+                )
+                updates.append(
+                    gr.update(
+                        value=(
+                            fresh_settings.translation.model_param_override_file or ""
+                        )
+                    )
+                )
+                updates.append(gr.update(value=fresh_settings.translation.llm_temperature))
+                updates.append(gr.update(value=fresh_settings.translation.llm_top_p))
+                updates.append(gr.update(value=fresh_settings.translation.llm_top_k))
+                updates.append(gr.update(value=fresh_settings.translation.llm_max_tokens))
+                updates.append(
+                    gr.update(value=fresh_settings.translation.llm_timeout_seconds)
+                )
+                updates.append(
+                    gr.update(
+                        value=fresh_settings.translation.paragraph_batch_token_limit
+                    )
+                )
+                updates.append(
+                    gr.update(
+                        value=fresh_settings.translation.paragraph_batch_size_limit
+                    )
+                )
+                updates.append(
+                    gr.update(value=fresh_settings.translation.term_batch_token_limit)
+                )
+                updates.append(
+                    gr.update(value=fresh_settings.translation.term_batch_size_limit)
+                )
+                updates.append(
+                    gr.update(value=fresh_settings.translation.llm_output_ratio_min)
+                )
+                updates.append(
+                    gr.update(value=fresh_settings.translation.llm_output_ratio_max)
+                )
+                updates.append(
+                    gr.update(
+                        value=(
+                            fresh_settings.translation.same_as_input_min_input_tokens
+                        )
+                    )
+                )
+                updates.append(
+                    gr.update(
+                        value=(
+                            fresh_settings.translation.same_text_edit_distance_threshold
+                        )
+                    )
+                )
+                updates.append(
+                    gr.update(
+                        value=fresh_settings.translation.same_text_min_input_tokens
+                    )
+                )
+                updates.append(
+                    gr.update(value=fresh_settings.translation.openai_max_tokens)
+                )
+                updates.append(
+                    gr.update(value=fresh_settings.translation.gemini_temperature)
+                )
+                updates.append(gr.update(value=fresh_settings.translation.gemini_top_p))
+                updates.append(
+                    gr.update(value=fresh_settings.translation.gemini_max_tokens)
+                )
+                updates.append(
+                    gr.update(
+                        value=fresh_settings.translation.gemini_timeout_seconds
+                    )
                 )
                 updates.append(
                     gr.update(
@@ -3027,6 +3550,13 @@ with gr.Blocks(
                         visible=fresh_settings.translation.no_auto_extract_glossary
                     )
                 )  # term_disabled_info visibility
+                updates.append(gr.update(visible=llm_support))  # llm_runtime_group
+                updates.append(
+                    gr.update(visible=selected_service == "OpenAI")
+                )  # openai_runtime_group
+                updates.append(
+                    gr.update(visible=selected_service == "Gemini")
+                )  # gemini_runtime_group
 
                 return updates
             except Exception as e:

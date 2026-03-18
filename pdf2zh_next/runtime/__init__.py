@@ -1,6 +1,7 @@
 from pdf2zh_next.runtime.llm_config import ModelFamily
 from pdf2zh_next.runtime.llm_config import ModelParamBundle
 from pdf2zh_next.runtime.llm_config import PromptBundle
+from pdf2zh_next.runtime.llm_config import apply_translation_model_param_overrides
 from pdf2zh_next.runtime.llm_config import build_babeldoc_role_block
 from pdf2zh_next.runtime.llm_config import build_main_role_block
 from pdf2zh_next.runtime.llm_config import detect_model_family
@@ -11,6 +12,7 @@ __all__ = [
     "ModelFamily",
     "ModelParamBundle",
     "PromptBundle",
+    "apply_translation_model_param_overrides",
     "build_babeldoc_role_block",
     "build_main_role_block",
     "detect_model_family",

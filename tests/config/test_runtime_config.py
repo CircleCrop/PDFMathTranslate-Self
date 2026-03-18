@@ -11,6 +11,7 @@ from pdf2zh_next.config.model import SettingsModel
 from pdf2zh_next.config.model import TranslationSettings
 from pdf2zh_next.config.translate_engine_model import OpenAISettings
 from pdf2zh_next.runtime import ModelFamily
+from pdf2zh_next.runtime import apply_translation_model_param_overrides
 from pdf2zh_next.runtime import build_babeldoc_role_block
 from pdf2zh_next.runtime import load_model_param_bundle
 from pdf2zh_next.runtime import load_prompt_bundle
@@ -154,6 +155,40 @@ def test_model_param_bundle_merges_family_and_provider_overrides(tmp_path: Path)
     assert family is ModelFamily.CLAUDE
     assert params["max_turns"] == 2
     assert params["max_tokens"] == 1024
+
+
+def test_translation_settings_override_model_param_bundle():
+    bundle = apply_translation_model_param_overrides(
+        load_model_param_bundle(),
+        TranslationSettings(
+            llm_temperature=0.35,
+            llm_top_p=0.82,
+            llm_timeout_seconds=45,
+            paragraph_batch_token_limit=320,
+            paragraph_batch_size_limit=7,
+            openai_max_tokens=4096,
+            gemini_temperature=0.12,
+            gemini_top_p=0.66,
+            gemini_max_tokens=3072,
+        ),
+    )
+
+    family, openai_params = bundle.resolve("openai", "gpt-4o-mini")
+    assert family is ModelFamily.GPT
+    assert openai_params["temperature"] == 0.35
+    assert openai_params["top_p"] == 0.82
+    assert openai_params["timeout_seconds"] == 45
+    assert openai_params["max_tokens"] == 4096
+
+    family, gemini_params = bundle.resolve("openai", "gemini-2.5-flash")
+    assert family is ModelFamily.GEMINI
+    assert gemini_params["temperature"] == 0.12
+    assert gemini_params["top_p"] == 0.66
+    assert gemini_params["max_tokens"] == 3072
+
+    _, babeldoc_params = bundle.resolve("babeldoc", "gpt-4o-mini")
+    assert babeldoc_params["paragraph_batch_token_limit"] == 320
+    assert babeldoc_params["paragraph_batch_size_limit"] == 7
 
 
 def test_babeldoc_role_builder_respects_custom_prompt(tmp_path: Path):
