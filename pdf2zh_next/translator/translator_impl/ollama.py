@@ -46,14 +46,17 @@ class OllamaTranslator(BaseTranslator):
             if key in {"temperature", "top_k", "top_p"}
         }
         base_num_predict = runtime_params.get("num_predict")
-        self.base_num_predict = int(base_num_predict) if base_num_predict else 0
+        self.base_num_predict = (
+            int(base_num_predict) if base_num_predict is not None else 0
+        )
         char_multiplier = runtime_params.get("num_predict_char_multiplier")
-        self.num_predict_char_multiplier = int(char_multiplier) if char_multiplier else 0
+        self.num_predict_char_multiplier = (
+            int(char_multiplier) if char_multiplier is not None else 0
+        )
         self.client = ollama.Client(
             host=settings.translate_engine_settings.ollama_host,
         )
-        for key, value in self.base_options.items():
-            self.add_cache_impact_parameters(key, value)
+        self.add_cache_impact_parameters_from_mapping(self.base_options)
         self.add_cache_impact_parameters("num_predict", self.base_num_predict)
         self.add_cache_impact_parameters(
             "num_predict_char_multiplier",
@@ -111,12 +114,7 @@ class OllamaTranslator(BaseTranslator):
         response = self.client.chat(
             model=self.model,
             options=options,
-            messages=[
-                {
-                    "role": "user",
-                    "content": text,
-                },
-            ],
+            messages=self.build_user_message(text),
         )
         self.token_count.inc(response.prompt_eval_count + response.eval_count)
         self.prompt_token_count.inc(response.prompt_eval_count)

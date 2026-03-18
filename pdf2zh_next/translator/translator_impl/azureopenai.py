@@ -36,8 +36,7 @@ class AzureOpenAITranslator(BaseTranslator):
             api_key=settings.translate_engine_settings.azure_openai_api_key,
             timeout=client_timeout if client_timeout else openai.NOT_GIVEN,
         )
-        for key, value in self.options.items():
-            self.add_cache_impact_parameters(key, value)
+        self.add_cache_impact_parameters_from_mapping(self.options)
         self.add_cache_impact_parameters("model", self.model)
         self.add_cache_impact_parameters("prompt", self.prompt(""))
         self.token_count = AtomicInteger()
@@ -56,16 +55,8 @@ class AzureOpenAITranslator(BaseTranslator):
             **self.options,
             messages=self.prompt(text),
         )
-        if hasattr(response, "usage") and response.usage:
-            if hasattr(response.usage, "total_tokens"):
-                self.token_count.inc(response.usage.total_tokens)
-            if hasattr(response.usage, "prompt_tokens"):
-                self.prompt_token_count.inc(response.usage.prompt_tokens)
-            if hasattr(response.usage, "completion_tokens"):
-                self.completion_token_count.inc(response.usage.completion_tokens)
-        message = response.choices[0].message.content.strip()
-        message = self._remove_cot_content(message)
-        return message
+        self.record_chat_usage(response)
+        return self.extract_chat_message_text(response)
 
     @retry(
         retry=retry_if_exception_type(openai.RateLimitError),
@@ -80,20 +71,7 @@ class AzureOpenAITranslator(BaseTranslator):
         response = self.client.chat.completions.create(
             model=self.model,
             **self.options,
-            messages=[
-                {
-                    "role": "user",
-                    "content": text,
-                },
-            ],
+            messages=self.build_user_message(text),
         )
-        if hasattr(response, "usage") and response.usage:
-            if hasattr(response.usage, "total_tokens"):
-                self.token_count.inc(response.usage.total_tokens)
-            if hasattr(response.usage, "prompt_tokens"):
-                self.prompt_token_count.inc(response.usage.prompt_tokens)
-            if hasattr(response.usage, "completion_tokens"):
-                self.completion_token_count.inc(response.usage.completion_tokens)
-        message = response.choices[0].message.content.strip()
-        message = self._remove_cot_content(message)
-        return message
+        self.record_chat_usage(response)
+        return self.extract_chat_message_text(response)

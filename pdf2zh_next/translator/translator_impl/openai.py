@@ -39,9 +39,9 @@ class OpenAITranslator(BaseTranslator):
         self.model = settings.translate_engine_settings.openai_model
 
         explicit_runtime_params = {}
-        if self.timeout:
+        if self.timeout is not None:
             explicit_runtime_params["timeout_seconds"] = float(self.timeout)
-        if self.send_temperature and self.temperature:
+        if self.send_temperature and self.temperature is not None:
             explicit_runtime_params["temperature"] = float(self.temperature)
 
         runtime_params = self.get_runtime_model_params(
@@ -60,8 +60,7 @@ class OpenAITranslator(BaseTranslator):
             ),
         )
         self.options = dict(runtime_params)
-        for key, value in self.options.items():
-            self.add_cache_impact_parameters(key, value)
+        self.add_cache_impact_parameters_from_mapping(self.options)
         if self.send_reasoning_effort and self.reasoning_effort:
             self.add_cache_impact_parameters("reasoning_effort", self.reasoning_effort)
             self.options["reasoning_effort"] = self.reasoning_effort
@@ -99,30 +98,8 @@ class OpenAITranslator(BaseTranslator):
             **options,
             messages=self.prompt(text),
         )
-        try:
-            if hasattr(response, "usage") and response.usage:
-                if hasattr(response.usage, "total_tokens"):
-                    self.token_count.inc(response.usage.total_tokens)
-                if hasattr(response.usage, "prompt_tokens"):
-                    self.prompt_token_count.inc(response.usage.prompt_tokens)
-                if hasattr(response.usage, "completion_tokens"):
-                    self.completion_token_count.inc(response.usage.completion_tokens)
-                if hasattr(response.usage, "prompt_cache_hit_tokens"):
-                    self.cache_hit_prompt_token_count.inc(
-                        response.usage.prompt_cache_hit_tokens
-                    )
-                elif hasattr(response.usage, "prompt_tokens_details") and hasattr(
-                    response.usage.prompt_tokens_details, "cached_tokens"
-                ):
-                    self.cache_hit_prompt_token_count.inc(
-                        response.usage.prompt_tokens_details.cached_tokens
-                    )
-        except Exception as e:
-            logger.error(f"Error getting token usage: {e}")
-            pass
-        message = response.choices[0].message.content.strip()
-        message = self._remove_cot_content(message)
-        return message
+        self.record_chat_usage(response)
+        return self.extract_chat_message_text(response)
 
     @retry(
         retry=retry_if_exception_type(openai.RateLimitError),
@@ -144,34 +121,7 @@ class OpenAITranslator(BaseTranslator):
         response = self.client.chat.completions.create(
             model=self.model,
             **options,
-            messages=[
-                {
-                    "role": "user",
-                    "content": text,
-                },
-            ],
+            messages=self.build_user_message(text),
         )
-        try:
-            if hasattr(response, "usage") and response.usage:
-                if hasattr(response.usage, "total_tokens"):
-                    self.token_count.inc(response.usage.total_tokens)
-                if hasattr(response.usage, "prompt_tokens"):
-                    self.prompt_token_count.inc(response.usage.prompt_tokens)
-                if hasattr(response.usage, "completion_tokens"):
-                    self.completion_token_count.inc(response.usage.completion_tokens)
-                if hasattr(response.usage, "prompt_cache_hit_tokens"):
-                    self.cache_hit_prompt_token_count.inc(
-                        response.usage.prompt_cache_hit_tokens
-                    )
-                elif hasattr(response.usage, "prompt_tokens_details") and hasattr(
-                    response.usage.prompt_tokens_details, "cached_tokens"
-                ):
-                    self.cache_hit_prompt_token_count.inc(
-                        response.usage.prompt_tokens_details.cached_tokens
-                    )
-        except Exception as e:
-            logger.error(f"Error getting token usage: {e}")
-            pass
-        message = response.choices[0].message.content.strip()
-        message = self._remove_cot_content(message)
-        return message
+        self.record_chat_usage(response)
+        return self.extract_chat_message_text(response)

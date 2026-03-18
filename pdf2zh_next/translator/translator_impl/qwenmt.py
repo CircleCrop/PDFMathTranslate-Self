@@ -34,8 +34,7 @@ class QwenMtTranslator(BaseTranslator):
             api_key=settings.translate_engine_settings.qwenmt_api_key,
             timeout=client_timeout if client_timeout else openai.NOT_GIVEN,
         )
-        for key, value in self.options.items():
-            self.add_cache_impact_parameters(key, value)
+        self.add_cache_impact_parameters_from_mapping(self.options)
         self.ali_domain = settings.translate_engine_settings.ali_domains
         self.add_cache_impact_parameters("model", self.model)
         self.add_cache_impact_parameters("prompt", self.prompt(""))
@@ -84,12 +83,11 @@ class QwenMtTranslator(BaseTranslator):
         response = self.client.chat.completions.create(
             model=self.model,
             **self.options,
-            messages=[{"role": "user", "content": text}],
+            messages=self.build_user_message(text),
             extra_body={"translation_options": translation_options},
         )
-        message = response.choices[0].message.content.strip()
-        message = self._remove_cot_content(message)
-        return message
+        self.record_chat_usage(response)
+        return self.extract_chat_message_text(response)
 
     def do_llm_translate(self, text, rate_limit_params: dict = None):
         raise NotImplementedError

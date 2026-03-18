@@ -3,6 +3,7 @@ import logging
 import re
 from abc import ABC
 from abc import abstractmethod
+from collections.abc import Mapping
 from typing import Any
 
 from pdf2zh_next.config.model import SettingsModel
@@ -142,6 +143,67 @@ class BaseTranslator(ABC):
         :param v: value
         """
         self.cache.add_params(k, v)
+
+    def add_cache_impact_parameters_from_mapping(
+        self,
+        params: Mapping[str, Any],
+    ) -> None:
+        for key, value in params.items():
+            self.add_cache_impact_parameters(key, value)
+
+    def build_user_message(self, text: str) -> list[dict[str, str]]:
+        return [{"role": "user", "content": text}]
+
+    def record_chat_usage(self, response: Any) -> None:
+        usage = getattr(response, "usage", None)
+        if not usage:
+            return
+
+        self._increment_usage_counter("token_count", getattr(usage, "total_tokens", None))
+        self._increment_usage_counter(
+            "prompt_token_count",
+            getattr(usage, "prompt_tokens", None),
+        )
+        self._increment_usage_counter(
+            "completion_token_count",
+            getattr(usage, "completion_tokens", None),
+        )
+
+        cached_tokens = getattr(usage, "prompt_cache_hit_tokens", None)
+        if cached_tokens is None:
+            prompt_tokens_details = getattr(usage, "prompt_tokens_details", None)
+            cached_tokens = getattr(prompt_tokens_details, "cached_tokens", None)
+        self._increment_usage_counter("cache_hit_prompt_token_count", cached_tokens)
+
+    def _increment_usage_counter(self, attr_name: str, value: Any) -> None:
+        if value is None:
+            return
+        counter = getattr(self, attr_name, None)
+        if counter is None:
+            return
+        try:
+            counter.inc(int(value))
+        except Exception:
+            logger.debug("Failed to update usage counter %s", attr_name, exc_info=True)
+
+    def extract_chat_message_text(self, response: Any) -> str:
+        content = response.choices[0].message.content
+        if isinstance(content, str):
+            text = content
+        elif isinstance(content, list):
+            text = "".join(self._extract_content_part_text(part) for part in content)
+        else:
+            text = "" if content is None else str(content)
+        return self._remove_cot_content(text.strip())
+
+    def _extract_content_part_text(self, part: Any) -> str:
+        if isinstance(part, str):
+            return part
+        if isinstance(part, dict):
+            text = part.get("text")
+            return text if isinstance(text, str) else ""
+        text = getattr(part, "text", None)
+        return text if isinstance(text, str) else ""
 
     def translate(self, text, ignore_cache=False, rate_limit_params: dict = None):
         """

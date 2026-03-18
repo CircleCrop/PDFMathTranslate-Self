@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import re
 from dataclasses import dataclass
 from enum import Enum
@@ -10,8 +9,6 @@ from string import Template
 from typing import Any
 
 import yaml
-
-logger = logging.getLogger(__name__)
 
 
 class ModelFamily(str, Enum):
@@ -41,6 +38,14 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
     return merged
 
 
+def _normalize_top_level_mapping(data: Any, source: str) -> dict[str, Any]:
+    if data is None:
+        return {}
+    if not isinstance(data, dict):
+        raise ValueError(f"{source} must contain a mapping at top level")
+    return data
+
+
 def _load_yaml_file(path: Path) -> dict[str, Any]:
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -48,22 +53,14 @@ def _load_yaml_file(path: Path) -> dict[str, Any]:
         raise ValueError(f"Config file not found: {path}") from exc
     except yaml.YAMLError as exc:
         raise ValueError(f"Invalid YAML file: {path}") from exc
-    if data is None:
-        return {}
-    if not isinstance(data, dict):
-        raise ValueError(f"YAML file must contain a mapping at top level: {path}")
-    return data
+    return _normalize_top_level_mapping(data, f"YAML file {path}")
 
 
 def _load_packaged_yaml(*parts: str) -> dict[str, Any]:
     package_root = resources.files("pdf2zh_next")
     resource = package_root.joinpath(*parts)
     data = yaml.safe_load(resource.read_text(encoding="utf-8"))
-    if data is None:
-        return {}
-    if not isinstance(data, dict):
-        raise ValueError(f"Packaged YAML must contain a mapping: {'/'.join(parts)}")
-    return data
+    return _normalize_top_level_mapping(data, f"Packaged YAML {'/'.join(parts)}")
 
 
 def _resolve_override_file(path: str | None) -> Path | None:
@@ -125,6 +122,25 @@ def _extract_profile(config: dict[str, Any], profile_name: str) -> dict[str, Any
     return profile
 
 
+def _normalize_named_mapping(
+    values: Any,
+    *,
+    section_name: str,
+    profile_name: str,
+) -> dict[str, dict[str, Any]]:
+    if not values:
+        return {}
+    if not isinstance(values, dict):
+        raise ValueError(f"{section_name} must be a mapping: {profile_name}")
+
+    normalized: dict[str, dict[str, Any]] = {}
+    for key, value in values.items():
+        if not isinstance(value, dict):
+            raise ValueError(f"{section_name} entry must be a mapping: {key}")
+        normalized[key] = value
+    return normalized
+
+
 def load_prompt_bundle(
     profile_name: str = "default",
     override_file: str | None = None,
@@ -171,28 +187,20 @@ def load_model_param_bundle(
 
     if not isinstance(defaults, dict):
         raise ValueError(f"Model param profile defaults must be a mapping: {profile_name}")
-    if not isinstance(families, dict):
-        raise ValueError(f"Model param families must be a mapping: {profile_name}")
-    if not isinstance(providers, dict):
-        raise ValueError(f"Model param providers must be a mapping: {profile_name}")
-
-    normalized_families: dict[str, dict[str, Any]] = {}
-    for key, value in families.items():
-        if not isinstance(value, dict):
-            raise ValueError(f"Model param family entry must be a mapping: {key}")
-        normalized_families[key] = value
-
-    normalized_providers: dict[str, dict[str, Any]] = {}
-    for key, value in providers.items():
-        if not isinstance(value, dict):
-            raise ValueError(f"Model param provider entry must be a mapping: {key}")
-        normalized_providers[key] = value
 
     return ModelParamBundle(
         profile_name=profile_name,
         defaults=defaults,
-        families=normalized_families,
-        providers=normalized_providers,
+        families=_normalize_named_mapping(
+            families,
+            section_name="Model param family",
+            profile_name=profile_name,
+        ),
+        providers=_normalize_named_mapping(
+            providers,
+            section_name="Model param provider",
+            profile_name=profile_name,
+        ),
     )
 
 

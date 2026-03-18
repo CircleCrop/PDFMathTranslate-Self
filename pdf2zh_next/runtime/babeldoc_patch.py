@@ -55,9 +55,7 @@ logger = logging.getLogger(__name__)
 _PATCH_APPLIED = False
 
 _PROMPT_BUNDLE_ATTR = "_pdf2zh_next_prompt_bundle"
-_MODEL_PARAM_BUNDLE_ATTR = "_pdf2zh_next_model_param_bundle"
 _BABELDOC_PARAMS_ATTR = "_pdf2zh_next_babeldoc_params"
-_BABELDOC_MODEL_NAME_ATTR = "_pdf2zh_next_babeldoc_model_name"
 
 SUPPORTED_BABELDOC_PARAM_KEYS = {
     "paragraph_batch_token_limit",
@@ -185,9 +183,7 @@ def attach_babeldoc_runtime_context(
         if key in SUPPORTED_BABELDOC_PARAM_KEYS
     }
     setattr(translation_config, _PROMPT_BUNDLE_ATTR, prompt_bundle)
-    setattr(translation_config, _MODEL_PARAM_BUNDLE_ATTR, model_param_bundle)
     setattr(translation_config, _BABELDOC_PARAMS_ATTR, filtered_params)
-    setattr(translation_config, _BABELDOC_MODEL_NAME_ATTR, model_name)
 
 
 def _get_prompt_bundle(translation_config: Any) -> PromptBundle:
@@ -210,6 +206,56 @@ def _get_babeldoc_param(
     default: Any,
 ) -> Any:
     return _get_babeldoc_params(translation_config).get(key, default)
+
+
+def _advance_progress(pbar, amount: int = 1) -> None:
+    if pbar:
+        pbar.advance(amount)
+
+
+def _should_skip_paragraph(
+    paragraph: PdfParagraph,
+    *,
+    translated_ids: set[int] | None = None,
+    min_text_length: int | None = None,
+) -> bool:
+    if paragraph.debug_id is None or paragraph.unicode is None:
+        return True
+    if translated_ids is not None and id(paragraph) in translated_ids:
+        return True
+    if is_cid_paragraph(paragraph):
+        return True
+    if min_text_length is not None and len(paragraph.unicode) < min_text_length:
+        return True
+    if is_pure_numeric_paragraph(paragraph):
+        return True
+    if is_placeholder_only_paragraph(paragraph):
+        return True
+    return False
+
+
+def _flush_batch_if_needed(
+    *,
+    items: list[Any],
+    total_token_count: int,
+    token_limit: int,
+    size_limit: int,
+    submit_batch,
+) -> tuple[list[Any], int]:
+    if total_token_count > token_limit or len(items) > size_limit:
+        submit_batch(items, total_token_count)
+        return [], 0
+    return items, total_token_count
+
+
+def _flush_remaining_batch(
+    *,
+    items: list[Any],
+    total_token_count: int,
+    submit_batch,
+) -> None:
+    if items:
+        submit_batch(items, total_token_count)
 
 
 def _build_contextual_hints_block(
@@ -368,35 +414,29 @@ class PatchedILTranslatorLLMOnly(BabelDOCILTranslatorLLMOnly):
             5,
         )
 
+        def submit_batch(batch_paragraphs: list[PdfParagraph], token_count: int) -> None:
+            self.mid += 1
+            executor.submit(
+                self.translate_paragraph,
+                LLMBatchParagraph(batch_paragraphs, [page] * len(batch_paragraphs), tracker),
+                pbar,
+                page_font_map,
+                page_xobj_font_map,
+                self.translation_config.shared_context_cross_split_part.first_paragraph,
+                self.translation_config.shared_context_cross_split_part.recent_title_paragraph,
+                executor2,
+                priority=1048576 - token_count,
+                paragraph_token_count=token_count,
+                mp_id=self.mid,
+            )
+
         for paragraph in page.pdf_paragraph:
-            if paragraph.debug_id is None or paragraph.unicode is None:
-                if pbar:
-                    pbar.advance(1)
-                continue
-
-            if id(paragraph) in translated_ids:
-                if pbar:
-                    pbar.advance(1)
-                continue
-
-            if is_cid_paragraph(paragraph):
-                if pbar:
-                    pbar.advance(1)
-                continue
-
-            if len(paragraph.unicode) < self.translation_config.min_text_length:
-                if pbar:
-                    pbar.advance(1)
-                continue
-
-            if is_pure_numeric_paragraph(paragraph):
-                if pbar:
-                    pbar.advance(1)
-                continue
-
-            if is_placeholder_only_paragraph(paragraph):
-                if pbar:
-                    pbar.advance(1)
+            if _should_skip_paragraph(
+                paragraph,
+                translated_ids=translated_ids,
+                min_text_length=self.translation_config.min_text_length,
+            ):
+                _advance_progress(pbar)
                 continue
 
             total_token_count += self.calc_token_count(paragraph.unicode)
@@ -407,42 +447,19 @@ class PatchedILTranslatorLLMOnly(BabelDOCILTranslatorLLMOnly):
                     copy.deepcopy(paragraph)
                 )
 
-            if (
-                total_token_count > batch_token_limit
-                or len(paragraphs) > batch_size_limit
-            ):
-                self.mid += 1
-                executor.submit(
-                    self.translate_paragraph,
-                    LLMBatchParagraph(paragraphs, [page] * len(paragraphs), tracker),
-                    pbar,
-                    page_font_map,
-                    page_xobj_font_map,
-                    self.translation_config.shared_context_cross_split_part.first_paragraph,
-                    self.translation_config.shared_context_cross_split_part.recent_title_paragraph,
-                    executor2,
-                    priority=1048576 - total_token_count,
-                    paragraph_token_count=total_token_count,
-                    mp_id=self.mid,
-                )
-                paragraphs = []
-                total_token_count = 0
-
-        if paragraphs:
-            self.mid += 1
-            executor.submit(
-                self.translate_paragraph,
-                LLMBatchParagraph(paragraphs, [page] * len(paragraphs), tracker),
-                pbar,
-                page_font_map,
-                page_xobj_font_map,
-                self.translation_config.shared_context_cross_split_part.first_paragraph,
-                self.translation_config.shared_context_cross_split_part.recent_title_paragraph,
-                executor2,
-                priority=1048576 - total_token_count,
-                paragraph_token_count=total_token_count,
-                mp_id=self.mid,
+            paragraphs, total_token_count = _flush_batch_if_needed(
+                items=paragraphs,
+                total_token_count=total_token_count,
+                token_limit=batch_token_limit,
+                size_limit=batch_size_limit,
+                submit_batch=submit_batch,
             )
+
+        _flush_remaining_batch(
+            items=paragraphs,
+            total_token_count=total_token_count,
+            submit_batch=submit_batch,
+        )
 
     def translate_paragraph(
         self,
@@ -797,48 +814,36 @@ class PatchedAutomaticTermExtractor(BabelDOCAutomaticTermExtractor):
             "term_batch_size_limit",
             12,
         )
+
+        def submit_batch(batch_paragraphs: list[PdfParagraph], token_count: int) -> None:
+            executor.submit(
+                self.extract_terms_from_paragraphs,
+                TermBatchParagraph(batch_paragraphs, tracker),
+                pbar,
+                token_count,
+                priority=1048576 - token_count,
+            )
+
         for paragraph in page.pdf_paragraph:
-            if paragraph.debug_id is None or paragraph.unicode is None:
-                if pbar:
-                    pbar.advance(1)
-                continue
-            if is_cid_paragraph(paragraph):
-                if pbar:
-                    pbar.advance(1)
-                continue
-            if is_pure_numeric_paragraph(paragraph):
-                if pbar:
-                    pbar.advance(1)
-                continue
-            if is_placeholder_only_paragraph(paragraph):
-                if pbar:
-                    pbar.advance(1)
+            if _should_skip_paragraph(paragraph):
+                _advance_progress(pbar)
                 continue
 
             total_token_count += self.calc_token_count(paragraph.unicode)
             paragraphs.append(paragraph)
-            if (
-                total_token_count > batch_token_limit
-                or len(paragraphs) > batch_size_limit
-            ):
-                executor.submit(
-                    self.extract_terms_from_paragraphs,
-                    TermBatchParagraph(paragraphs, tracker),
-                    pbar,
-                    total_token_count,
-                    priority=1048576 - total_token_count,
-                )
-                paragraphs = []
-                total_token_count = 0
-
-        if paragraphs:
-            executor.submit(
-                self.extract_terms_from_paragraphs,
-                TermBatchParagraph(paragraphs, tracker),
-                pbar,
-                total_token_count,
-                priority=1048576 - total_token_count,
+            paragraphs, total_token_count = _flush_batch_if_needed(
+                items=paragraphs,
+                total_token_count=total_token_count,
+                token_limit=batch_token_limit,
+                size_limit=batch_size_limit,
+                submit_batch=submit_batch,
             )
+
+        _flush_remaining_batch(
+            items=paragraphs,
+            total_token_count=total_token_count,
+            submit_batch=submit_batch,
+        )
 
     def extract_terms_from_paragraphs(
         self,

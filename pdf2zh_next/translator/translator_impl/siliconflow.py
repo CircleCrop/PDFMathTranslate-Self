@@ -35,8 +35,7 @@ class SiliconFlowTranslator(BaseTranslator):
             api_key=settings.translate_engine_settings.siliconflow_api_key,
             timeout=client_timeout if client_timeout else openai.NOT_GIVEN,
         )
-        for key, value in self.options.items():
-            self.add_cache_impact_parameters(key, value)
+        self.add_cache_impact_parameters_from_mapping(self.options)
         self.enable_thinking = (
             settings.translate_engine_settings.siliconflow_enable_thinking
         )
@@ -80,30 +79,8 @@ class SiliconFlowTranslator(BaseTranslator):
             messages=self.prompt(text),
             extra_body=extra_body,
         )
-        try:
-            if hasattr(response, "usage") and response.usage:
-                if hasattr(response.usage, "total_tokens"):
-                    self.token_count.inc(response.usage.total_tokens)
-                if hasattr(response.usage, "prompt_tokens"):
-                    self.prompt_token_count.inc(response.usage.prompt_tokens)
-                if hasattr(response.usage, "completion_tokens"):
-                    self.completion_token_count.inc(response.usage.completion_tokens)
-                if hasattr(response.usage, "prompt_cache_hit_tokens"):
-                    self.cache_hit_prompt_token_count.inc(
-                        response.usage.prompt_cache_hit_tokens
-                    )
-                elif hasattr(response.usage, "prompt_tokens_details") and hasattr(
-                    response.usage.prompt_tokens_details, "cached_tokens"
-                ):
-                    self.cache_hit_prompt_token_count.inc(
-                        response.usage.prompt_tokens_details.cached_tokens
-                    )
-        except Exception as e:
-            logger.error(f"Error getting token usage: {e}")
-            pass
-        message = response.choices[0].message.content.strip()
-        message = self._remove_cot_content(message)
-        return message
+        self.record_chat_usage(response)
+        return self.extract_chat_message_text(response)
 
     @retry(
         retry=retry_if_exception_type(openai.RateLimitError),
@@ -125,35 +102,8 @@ class SiliconFlowTranslator(BaseTranslator):
         response = self.client.chat.completions.create(
             model=self.model,
             **self.options,
-            messages=[
-                {
-                    "role": "user",
-                    "content": text,
-                },
-            ],
+            messages=self.build_user_message(text),
             extra_body=extra_body,
         )
-        try:
-            if hasattr(response, "usage") and response.usage:
-                if hasattr(response.usage, "total_tokens"):
-                    self.token_count.inc(response.usage.total_tokens)
-                if hasattr(response.usage, "prompt_tokens"):
-                    self.prompt_token_count.inc(response.usage.prompt_tokens)
-                if hasattr(response.usage, "completion_tokens"):
-                    self.completion_token_count.inc(response.usage.completion_tokens)
-                if hasattr(response.usage, "prompt_cache_hit_tokens"):
-                    self.cache_hit_prompt_token_count.inc(
-                        response.usage.prompt_cache_hit_tokens
-                    )
-                elif hasattr(response.usage, "prompt_tokens_details") and hasattr(
-                    response.usage.prompt_tokens_details, "cached_tokens"
-                ):
-                    self.cache_hit_prompt_token_count.inc(
-                        response.usage.prompt_tokens_details.cached_tokens
-                    )
-        except Exception as e:
-            logger.error(f"Error getting token usage: {e}")
-            pass
-        message = response.choices[0].message.content.strip()
-        message = self._remove_cot_content(message)
-        return message
+        self.record_chat_usage(response)
+        return self.extract_chat_message_text(response)

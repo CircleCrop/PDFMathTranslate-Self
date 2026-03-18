@@ -66,6 +66,14 @@ class DummyRateLimiter:
         return None
 
 
+class DummyCounter:
+    def __init__(self):
+        self.value = 0
+
+    def inc(self, value):
+        self.value += value
+
+
 class DummyTranslator(BaseTranslator):
     name = "dummy"
 
@@ -249,3 +257,45 @@ def test_babeldoc_patch_targets_are_valid_and_patch_is_applied():
     assert babeldoc_high_level.ILTranslator is PatchedILTranslator
     assert babeldoc_high_level.ILTranslatorLLMOnly is PatchedILTranslatorLLMOnly
     assert babeldoc_high_level.AutomaticTermExtractor is PatchedAutomaticTermExtractor
+
+
+def test_extract_chat_message_text_handles_chunked_content():
+    translator = DummyTranslator(_build_settings())
+    response = SimpleNamespace(
+        choices=[
+            SimpleNamespace(
+                message=SimpleNamespace(
+                    content=[
+                        {"text": "Hello "},
+                        SimpleNamespace(text="world"),
+                    ]
+                )
+            )
+        ]
+    )
+
+    assert translator.extract_chat_message_text(response) == "Hello world"
+
+
+def test_record_chat_usage_handles_optional_cached_tokens():
+    translator = DummyTranslator(_build_settings())
+    translator.token_count = DummyCounter()
+    translator.prompt_token_count = DummyCounter()
+    translator.completion_token_count = DummyCounter()
+    translator.cache_hit_prompt_token_count = DummyCounter()
+
+    response = SimpleNamespace(
+        usage=SimpleNamespace(
+            total_tokens=12,
+            prompt_tokens=7,
+            completion_tokens=5,
+            prompt_tokens_details=SimpleNamespace(cached_tokens=3),
+        )
+    )
+
+    translator.record_chat_usage(response)
+
+    assert translator.token_count.value == 12
+    assert translator.prompt_token_count.value == 7
+    assert translator.completion_token_count.value == 5
+    assert translator.cache_hit_prompt_token_count.value == 3
